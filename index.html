@@ -12,9 +12,10 @@
 <meta name="theme-color" content="#8C4A62">
 <meta name="background-color" content="#FFF8F9">
 
-<!-- PWA: иконка для шарткатов -->
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<!-- PWA: иконки -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 
 <!-- iOS: полноэкранный режим -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -958,7 +959,7 @@ function setType(t){
   document.getElementById('subcat-val').textContent='Выбрать подкатегорию';
   document.getElementById('subcat-val').classList.add('ph');
   document.getElementById('to-row').style.display=t==='transfer'?'flex':'none';
-  document.getElementById('from-lbl').textContent=t==='transfer'?'Откуда':'Счёт';
+  document.getElementById('from-lbl').textContent=t==='transfer'?'Откуда':t==='income'?'На счёт (куда)':'Счёт (откуда)';
   document.getElementById('one-row').style.display=t==='expense'?'flex':'none';
 }
 
@@ -977,7 +978,7 @@ function openSheet(kind){
     renderSubcatSheetContent();
   } else {
     const isFrom=kind==='from';
-    document.getElementById('sh-title').textContent=isFrom?(typ==='transfer'?'Откуда':'Счёт'):'Куда';
+    document.getElementById('sh-title').textContent=isFrom?(typ==='transfer'?'Откуда':typ==='income'?'На счёт (куда)':'Счёт (откуда)'):'Куда';
     document.getElementById('sh-content').innerHTML=`<div class="acc-list">${ACCS.map(a=>`
       <div class="acc-item" onclick="pickAcc('${a.id}','${kind}')">
         <div class="acc-icon">${a.emoji}</div>
@@ -1086,7 +1087,8 @@ function renderHistory(){
       const s=e.type==='income'?'+':e.type==='transfer'?'↔':'−';
       const tag=e.onetime?'<span class="one-tag">разовое</span>':'';
       const scTag=e.subcat?`<span class="sc-tag">${e.subcat.name}</span>`:'';
-      const sub=[e.from?.name,e.comment].filter(Boolean).join(' · ');
+      const accLabel=e.from?.name?(e.type==='income'?'→ '+e.from.name:e.from.name):'';
+      const sub=[accLabel,e.comment].filter(Boolean).join(' · ');
       h+=`<div class="entry-card" onclick="delEntry(${e.id})">
         <div class="e-icon ${e.type}">${e.category?.emoji||'💬'}</div>
         <div class="e-body">
@@ -1221,7 +1223,10 @@ function getCSV(){
   const rows=[['Дата','Тип','Категория','Подкатегория','Сумма','Счёт откуда','Счёт куда','Разовое','Комментарий']];
   [...entries].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
     const tm={expense:'Расход',income:'Доход',transfer:'Перевод'};
-    rows.push([e.date,tm[e.type]||e.type,e.category?.name||'',e.subcat?.name||'',e.amount,e.from?.name||'',e.to?.name||'',e.onetime?'Да':'',e.comment||'']);
+    // для дохода: счёт — это куда пришли деньги (колонка "Счёт куда"), не "откуда"
+    const accFrom = e.type==='income' ? '' : (e.from?.name||'');
+    const accTo   = e.type==='income' ? (e.from?.name||'') : (e.to?.name||'');
+    rows.push([e.date,tm[e.type]||e.type,e.category?.name||'',e.subcat?.name||'',e.amount,accFrom,accTo,e.onetime?'Да':'',e.comment||'']);
   });
   return '\uFEFF'+rows.map(r=>r.join(';')).join('\n');
 }
