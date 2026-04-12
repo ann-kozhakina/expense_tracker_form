@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background for maskable icon (safe zone = inner 80%) -->
+  <rect width="512" height="512" fill="#8C4A62"/>
+  <!-- Wallet — scaled for safe zone -->
+  <rect x="116" y="184" width="280" height="182" rx="24" fill="#FFD9E3"/>
+  <rect x="116" y="166" width="280" height="52" rx="20" fill="#FFD9E3"/>
+  <rect x="310" y="248" width="78" height="50" rx="16" fill="#FFF8F9" opacity="0.85"/>
+  <circle cx="349" cy="273" r="11" fill="#8C4A62" opacity="0.25"/>
+  <circle cx="349" cy="273" r="6"  fill="#8C4A62" opacity="0.55"/>
+  <rect x="148" y="250" width="126" height="11" rx="5" fill="#8C4A62" opacity="0.22"/>
+  <rect x="148" y="273" width="90"  height="9"  rx="4" fill="#8C4A62" opacity="0.15"/>
+</svg>
