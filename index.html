@@ -635,9 +635,17 @@
         <button onclick="syncAllToCloud()" style="width:100%;background:linear-gradient(135deg,#2563EB,#7C3AED);color:white;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
           ↑ Отправить все в Google Таблицу
         </button>
-        <button onclick="fetchFromCloud()" style="width:100%;background:var(--card);color:var(--primary);border:1.5px solid var(--primary);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">
+        <button onclick="fetchFromCloud()" style="width:100%;background:var(--card);color:var(--primary);border:1.5px solid var(--primary);border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">
           ↓ Получить из облака (обновить)
         </button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="testGasConnection()" style="flex:1;background:var(--card);color:#059669;border:1.5px solid #059669;border-radius:12px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">
+            🔍 Проверить связь
+          </button>
+          <a id="gas-open-link" href="#" target="_blank" onclick="this.href=GAS_URL" style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--mid);border:1.5px solid var(--border);border-radius:12px;padding:10px;font-size:13px;font-weight:700;text-decoration:none;">
+            🌐 Открыть URL
+          </a>
+        </div>
       </div>
     </div>
 
@@ -872,7 +880,12 @@ function syncToCloud(entry){
   // Поэтому отправляем через GET с параметром ?entry=JSON
   if(!cloudReady()) return;
   fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(entry)))
-    .catch(()=>{});
+    .then(r => r.json())
+    .then(result => {
+      if(result.ok) updateCloudStatus('ok','✓ Запись отправлена в таблицу');
+      else updateCloudStatus('err','Ошибка GAS: ' + (result.error||'?'));
+    })
+    .catch(err => updateCloudStatus('err','Нет связи: ' + err.message));
 }
 
 async function syncAllToCloud(){
@@ -893,8 +906,12 @@ async function syncAllToCloud(){
       updateCloudStatus('busy', `Отправка ${sent} из ${entries.length}…`);
 
       const r      = await fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch)));
-      const result = await r.json();
-      if(result.ok === false) throw new Error(result.error || 'Ошибка сервера');
+      let result;
+      try { result = await r.json(); }
+      catch { throw new Error('GAS вернул не JSON (возможно, нужно переразвернуть скрипт с доступом "Все пользователи")'); }
+      if(!result || typeof result !== 'object' || Array.isArray(result))
+        throw new Error('Неверный формат ответа от GAS. Проверь логи выполнения скрипта.');
+      if(result.ok === false) throw new Error(result.error || 'Ошибка GAS');
       totalAdded += result.added || 0;
     }
 
@@ -933,9 +950,35 @@ function fetchFromCloud(){
     toast(added > 0 ? `✅ Загружено +${added} записей` : '✅ Всё актуально');
   })
   .catch(err => {
-    updateCloudStatus('err','Ошибка загрузки');
-    toast('⚠️ Не удалось загрузить из облака');
+    updateCloudStatus('err','Ошибка загрузки: ' + err.message);
+    toast('⚠️ Не удалось загрузить: ' + err.message);
   });
+}
+
+async function testGasConnection(){
+  if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); return; }
+  updateCloudStatus('busy','Проверка соединения…');
+  try {
+    const r    = await fetch(GAS_URL);
+    const text = await r.text();
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = null; }
+    if(Array.isArray(parsed)){
+      updateCloudStatus('ok',`✓ Связь есть! В таблице ${parsed.length} записей`);
+      toast(`✅ GAS работает. Записей в таблице: ${parsed.length}`);
+    } else if(parsed && parsed.ok === false){
+      updateCloudStatus('err','GAS вернул ошибку: ' + parsed.error);
+      toast('⚠️ GAS ошибка: ' + parsed.error);
+    } else {
+      updateCloudStatus('err','Неожиданный ответ (не JSON-массив)');
+      toast('⚠️ Ответ: ' + text.substring(0,80));
+      console.warn('GAS raw response:', text);
+    }
+  } catch(err){
+    updateCloudStatus('err','Ошибка запроса: ' + err.message);
+    toast('⚠️ ' + err.message);
+    console.error('testGasConnection:', err);
+  }
 }
 // ────────────────────────────────────────────────────────────────────
 
