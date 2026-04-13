@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Сверка счетов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary:   #8C4A62;
+    --primary-c: #FFD9E3;
+    --on-pc:     #3A0722;
+    --surface:   #FFF8F9;
+    --surf-lo:   #F9EEF2;
+    --surf-mid:  #F3E8EC;
+    --surf-hi:   #EDE2E7;
+    --on-surf:   #1E1A1D;
+    --on-sv:     #6B5B65;
+    --outline:   #D9C2CB;
+    --error:     #B3261E;
+    --error-c:   #F9DEDC;
+    --success:   #386A20;
+    --success-c: #B8F397;
+    --warn:      #B56E00;
+    --warn-c:    #FFDCC1;
+    --inv-surf:  #332F31;
+    --inv-on:    #F9EEF1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Roboto', -apple-system, sans-serif;
+    background: var(--surface); color: var(--on-surf);
+    min-height: 100vh; max-width: 480px; margin: 0 auto;
+    padding-bottom: 40px; -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #A0526F, #7A3350);
+    padding: 52px 24px 24px; color: white;
+  }
+  .header-eye { font-size: 11px; font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.75; margin-bottom: 4px; }
+  .header-title { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+
+  /* ── DATE FILTER ── */
+  .filter-bar {
+    background: var(--surf-lo); padding: 14px 16px;
+    display: flex; gap: 10px; align-items: center;
+    border-bottom: 1px solid var(--outline);
+  }
+  .filter-bar label { font-size: 11px; font-weight: 500; color: var(--on-sv); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+  .filter-bar input[type="date"] {
+    flex: 1; border: 1px solid var(--outline); border-radius: 8px;
+    padding: 7px 10px; font-size: 13px; font-family: inherit;
+    background: white; color: var(--on-surf); outline: none;
+  }
+  .filter-bar input[type="date"]:focus { border-color: var(--primary); }
+  .btn-recalc {
+    background: var(--primary); color: white; border: none;
+    border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 500;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-recalc:active { opacity: 0.85; }
+
+  /* ── SUMMARY STRIP ── */
+  .summary-strip {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px; background: var(--outline);
+    border-bottom: 1px solid var(--outline);
+  }
+  .sum-cell {
+    background: var(--surf-lo); padding: 12px 14px; text-align: center;
+  }
+  .sum-label { font-size: 10px; color: var(--on-sv); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; margin-bottom: 4px; }
+  .sum-val { font-size: 18px; font-weight: 700; }
+  .sum-val.green { color: var(--success); }
+  .sum-val.red   { color: var(--error); }
+  .sum-val.warn  { color: var(--warn); }
+
+  /* ── ACCOUNT CARDS ── */
+  .section-title {
+    font-size: 11px; font-weight: 700; color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 16px 16px 8px;
+  }
+  .acc-card {
+    margin: 0 12px 10px;
+    background: white; border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .acc-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--outline);
+  }
+  .acc-emoji { font-size: 22px; }
+  .acc-name { font-size: 15px; font-weight: 700; flex: 1; }
+  .delta-badge {
+    font-size: 12px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .delta-ok   { background: var(--success-c); color: var(--success); }
+  .delta-warn { background: var(--warn-c); color: var(--warn); }
+  .delta-err  { background: var(--error-c); color: var(--error); }
+  .delta-na   { background: var(--surf-mid); color: var(--on-sv); }
+
+  .acc-body { padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .acc-field label {
+    display: block; font-size: 10px; color: var(--on-sv);
+    text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; margin-bottom: 4px;
+  }
+  .acc-field input {
+    width: 100%; border: 1.5px solid var(--outline); border-radius: 8px;
+    padding: 8px 10px; font-size: 14px; font-weight: 500;
+    font-family: inherit; color: var(--on-surf); background: var(--surface);
+    outline: none; transition: border-color 0.15s;
+  }
+  .acc-field input:focus { border-color: var(--primary); background: white; }
+  .acc-calc {
+    grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    padding-top: 8px; border-top: 1px solid var(--outline);
+    margin-top: 2px;
+  }
+  .acc-calc-cell label {
+    display: block; font-size: 10px; color: var(--on-sv);
+    text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; margin-bottom: 3px;
+  }
+  .acc-calc-val { font-size: 15px; font-weight: 700; color: var(--on-surf); }
+  .acc-calc-val.pos { color: var(--success); }
+  .acc-calc-val.neg { color: var(--error); }
+
+  /* ── SAVE BTN ── */
+  .save-bar {
+    position: sticky; bottom: 0;
+    background: var(--surface); padding: 12px 16px;
+    border-top: 1px solid var(--outline);
+    display: flex; gap: 10px;
+  }
+  .btn-save {
+    flex: 1; background: var(--primary); color: white; border: none;
+    border-radius: 24px; padding: 14px; font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+  }
+  .btn-save:active { opacity: 0.85; }
+  .btn-clear {
+    background: transparent; color: var(--on-sv); border: 1.5px solid var(--outline);
+    border-radius: 24px; padding: 14px 18px; font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+  }
+
+  /* ── HINT ── */
+  .hint-box {
+    margin: 12px 12px 0; padding: 12px 14px;
+    background: var(--primary-c); border-radius: 12px;
+    font-size: 12px; color: var(--on-pc); line-height: 1.6;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--inv-surf); color: var(--inv-on);
+    padding: 12px 22px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; z-index: 999;
+    opacity: 0; transition: opacity 0.25s; pointer-events: none;
+    white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eye">Финансы семьи</div>
+  <div class="header-title">Сверка счетов</div>
+  <div class="header-sub" id="hdr-sub">Загрузка...</div>
+</div>
+
+<div class="filter-bar">
+  <label>С</label>
+  <input type="date" id="dt-from">
+  <label>по</label>
+  <input type="date" id="dt-to">
+  <button class="btn-recalc" onclick="recalc()">Пересчитать</button>
+  <button class="btn-recalc" id="btn-reload" onclick="loadFromCloud()" style="background:#386A20;padding:8px 12px;" title="Обновить из таблицы">↻</button>
+</div>
+
+<div id="cloud-status" style="padding:8px 16px;font-size:12px;color:#386A20;background:#F0FAF0;border-bottom:1px solid #C8E6C9;">
+  ⏳ Подключаюсь к Google Таблице…
+</div>
+
+<div class="summary-strip">
+  <div class="sum-cell">
+    <div class="sum-label">Ожидается</div>
+    <div class="sum-val" id="tot-exp">—</div>
+  </div>
+  <div class="sum-cell">
+    <div class="sum-label">Фактически</div>
+    <div class="sum-val" id="tot-act">—</div>
+  </div>
+  <div class="sum-cell">
+    <div class="sum-label">Расхождение</div>
+    <div class="sum-val" id="tot-delta">—</div>
+  </div>
+</div>
+
+<div class="hint-box">
+  💡 Введи <b>входящий остаток</b> на начало периода (или на дату начала ведения трекера) и <b>фактический остаток</b> из банка прямо сейчас. Ожидаемый считается автоматически из трекера.
+</div>
+
+<div id="accounts-container"></div>
+
+<div class="save-bar">
+  <button class="btn-save" onclick="saveAll()">💾 Сохранить остатки</button>
+  <button class="btn-clear" onclick="clearActuals()">Сброс факт.</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── GAS — тот же URL, что в основном трекере ─────────────────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFZ72n358MZDMgAQ_ut8GHZFwQzDbckfAkk452NNFAzFwl8NbxeRYq6urBsF6nWwxr/exec';
+
+// ── Счета (должны совпадать с трекером) ──────────────────────────
+const ACCS = [
+  {id:'common',   name:'Общая карта',            emoji:'💳'},
+  {id:'anya_zp',  name:'Аня ЗП (Тинькофф)',      emoji:'💼'},
+  {id:'sber',     name:'Аня Сбер',                emoji:'🏦'},
+  {id:'vit_tink', name:'Виталий Тинькофф',        emoji:'🏢'},
+  {id:'vit_sber', name:'Виталий Сбербанк',        emoji:'🏦'},
+  {id:'ip',       name:'ИП счёт',                 emoji:'🏛️'},
+  {id:'cash',     name:'Наличные',                emoji:'💵'},
+  {id:'ns_edu',   name:'НС «На учёбу»',           emoji:'🎓'},
+  {id:'ns_vac',   name:'НС «Отпуск/инвестиции»',  emoji:'🌴'},
+  {id:'invest',   name:'Инвестсчёт',              emoji:'📈'},
+];
+
+// ── LocalStorage (только входящие и фактические остатки) ────────
+const KEY_OPENINGS = 'balance_openings_v1';
+const KEY_ACTUALS  = 'balance_actuals_v1';
+
+let openings = JSON.parse(localStorage.getItem(KEY_OPENINGS) || '{}');
+let actuals  = JSON.parse(localStorage.getItem(KEY_ACTUALS)  || '{}');
+let entries  = []; // загружается из Google Таблицы
+
+// ── JSONP-запрос к GAS ───────────────────────────────────────────
+function jsonpRequest(url, timeoutMs) {
+  timeoutMs = timeoutMs || 20000;
+  return new Promise(function(resolve, reject) {
+    const cbName = 'bcJSONP_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('Таймаут — GAS не ответил'));
+    }, timeoutMs);
+    function cleanup() {
+      if (done) return; done = true;
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(data) { cleanup(); resolve(data); };
+    script.onerror = function() { cleanup(); reject(new Error('Ошибка загрузки')); };
+    const sep = url.indexOf('?') === -1 ? '?' : '&';
+    script.src = url + sep + 'callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+// ── Загрузка транзакций из Google Таблицы ───────────────────────
+function setStatus(msg, isErr) {
+  const el = document.getElementById('cloud-status');
+  if (el) { el.textContent = msg; el.style.color = isErr ? '#B3261E' : '#386A20'; }
+  document.getElementById('hdr-sub').textContent = msg;
+}
+
+function loadFromCloud() {
+  setStatus('⏳ Загружаю данные из Google Таблицы…', false);
+  document.getElementById('btn-reload').textContent = '⏳';
+  document.getElementById('btn-reload').disabled = true;
+
+  jsonpRequest(GAS_URL)
+    .then(function(data) {
+      if (!Array.isArray(data)) throw new Error('Неверный формат ответа от GAS');
+      entries = data;
+      setStatus('✓ Загружено из таблицы: ' + entries.length + ' записей', false);
+      document.getElementById('btn-reload').textContent = '↻';
+      document.getElementById('btn-reload').disabled = false;
+      recalc();
+    })
+    .catch(function(err) {
+      setStatus('⚠️ ' + err.message, true);
+      document.getElementById('btn-reload').textContent = '↻';
+      document.getElementById('btn-reload').disabled = false;
+      toast('⚠️ ' + err.message);
+    });
+}
+
+// ── Helpers ─────────────────────────────────────────────────────
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return (n >= 0 ? '' : '−') + Math.abs(Math.round(n)).toLocaleString('ru') + ' ₽';
+}
+function fmtDelta(n) {
+  if (n === null || isNaN(n)) return '—';
+  return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(Math.round(n)).toLocaleString('ru') + ' ₽';
+}
+function numVal(id) {
+  const v = parseFloat(document.getElementById(id)?.value.replace(/\s/g,'').replace(',','.'));
+  return isNaN(v) ? null : v;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function monthStartStr() {
+  const d = new Date(); d.setDate(1);
+  return d.toISOString().split('T')[0];
+}
+
+// ── Build UI ─────────────────────────────────────────────────────
+function buildUI() {
+  const container = document.getElementById('accounts-container');
+  container.innerHTML = '<div class="section-title">По счетам</div>';
+  ACCS.forEach(acc => {
+    const card = document.createElement('div');
+    card.className = 'acc-card';
+    card.id = 'card-' + acc.id;
+    card.innerHTML = `
+      <div class="acc-header">
+        <span class="acc-emoji">${acc.emoji}</span>
+        <span class="acc-name">${acc.name}</span>
+        <span class="delta-badge delta-na" id="badge-${acc.id}">—</span>
+      </div>
+      <div class="acc-body">
+        <div class="acc-field">
+          <label>Входящий остаток ₽</label>
+          <input type="number" inputmode="decimal" id="open-${acc.id}"
+                 placeholder="0"
+                 value="${openings[acc.id] !== undefined ? openings[acc.id] : ''}"
+                 onchange="recalcAcc('${acc.id}')">
+        </div>
+        <div class="acc-field">
+          <label>Фактический сейчас ₽</label>
+          <input type="number" inputmode="decimal" id="actual-${acc.id}"
+                 placeholder="введи из банка"
+                 value="${actuals[acc.id] !== undefined ? actuals[acc.id] : ''}"
+                 onchange="recalcAcc('${acc.id}')">
+        </div>
+        <div class="acc-calc">
+          <div class="acc-calc-cell">
+            <label>Движение по трекеру</label>
+            <div class="acc-calc-val" id="tx-${acc.id}">—</div>
+          </div>
+          <div class="acc-calc-cell">
+            <label>Ожидаемый остаток</label>
+            <div class="acc-calc-val" id="exp-${acc.id}">—</div>
+          </div>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+// ── Calculate transactions for one account ───────────────────────
+function calcTx(accId, dtFrom, dtTo) {
+  let net = 0;
+  entries.forEach(e => {
+    if (e.date < dtFrom || e.date > dtTo) return;
+    if (e.type === 'income'   && e.from?.id === accId) net += e.amount;
+    if (e.type === 'expense'  && e.from?.id === accId) net -= e.amount;
+    if (e.type === 'transfer' && e.from?.id === accId) net -= e.amount;
+    if (e.type === 'transfer' && e.to?.id   === accId) net += e.amount;
+  });
+  return net;
+}
+
+// ── Recalc one account card ──────────────────────────────────────
+function recalcAcc(accId, dtFrom, dtTo) {
+  if (!dtFrom) dtFrom = document.getElementById('dt-from').value || monthStartStr();
+  if (!dtTo)   dtTo   = document.getElementById('dt-to').value   || todayStr();
+
+  const opening = parseFloat(document.getElementById('open-'  + accId)?.value) || 0;
+  const actual  = numVal('actual-' + accId);
+  const tx      = calcTx(accId, dtFrom, dtTo);
+  const expected = opening + tx;
+
+  // Движение
+  const txEl = document.getElementById('tx-' + accId);
+  txEl.textContent = fmtDelta(tx);
+  txEl.className = 'acc-calc-val' + (tx > 0 ? ' pos' : tx < 0 ? ' neg' : '');
+
+  // Ожидаемый
+  document.getElementById('exp-' + accId).textContent = fmt(expected);
+
+  // Расхождение
+  const badge = document.getElementById('badge-' + accId);
+  if (actual === null) {
+    badge.textContent = '—';
+    badge.className = 'delta-badge delta-na';
+  } else {
+    const delta = actual - expected;
+    badge.textContent = fmtDelta(delta);
+    if (Math.abs(delta) < 100) {
+      badge.className = 'delta-badge delta-ok';
+    } else if (Math.abs(delta) < 2000) {
+      badge.className = 'delta-badge delta-warn';
+    } else {
+      badge.className = 'delta-badge delta-err';
+    }
+  }
+  return { expected, actual, tx };
+}
+
+// ── Recalc all ───────────────────────────────────────────────────
+function recalc() {
+  const dtFrom = document.getElementById('dt-from').value || monthStartStr();
+  const dtTo   = document.getElementById('dt-to').value   || todayStr();
+
+  let totExp = 0, totAct = 0, hasAct = false;
+
+  ACCS.forEach(acc => {
+    const r = recalcAcc(acc.id, dtFrom, dtTo);
+    totExp += r.expected;
+    if (r.actual !== null) { totAct += r.actual; hasAct = true; }
+  });
+
+  const expEl   = document.getElementById('tot-exp');
+  const actEl   = document.getElementById('tot-act');
+  const deltaEl = document.getElementById('tot-delta');
+
+  expEl.textContent = fmt(totExp);
+  expEl.className = 'sum-val';
+
+  if (hasAct) {
+    actEl.textContent = fmt(totAct);
+    actEl.className = 'sum-val';
+    const d = totAct - totExp;
+    deltaEl.textContent = fmtDelta(d);
+    deltaEl.className = 'sum-val ' + (Math.abs(d)<100 ? 'green' : Math.abs(d)<2000 ? 'warn' : 'red');
+  } else {
+    actEl.textContent = '—';
+    deltaEl.textContent = '—';
+  }
+
+  updateHeader(dtFrom, dtTo);
+}
+
+function updateHeader(dtFrom, dtTo) {
+  const fmt2 = s => {
+    const [y,m,d] = s.split('-');
+    const mn = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    return d+' '+mn[+m-1]+' '+y;
+  };
+  document.getElementById('hdr-sub').textContent =
+    `Период: ${fmt2(dtFrom)} — ${fmt2(dtTo)} · ${entries.length} зап. из таблицы`;
+}
+
+// ── Save ─────────────────────────────────────────────────────────
+function saveAll() {
+  const newOpenings = {}, newActuals = {};
+  ACCS.forEach(acc => {
+    const o = parseFloat(document.getElementById('open-'  + acc.id)?.value);
+    const a = parseFloat(document.getElementById('actual-' + acc.id)?.value);
+    if (!isNaN(o)) newOpenings[acc.id] = o;
+    if (!isNaN(a)) newActuals[acc.id]  = a;
+  });
+  localStorage.setItem(KEY_OPENINGS, JSON.stringify(newOpenings));
+  localStorage.setItem(KEY_ACTUALS,  JSON.stringify(newActuals));
+  openings = newOpenings;
+  actuals  = newActuals;
+  toast('✅ Остатки сохранены');
+}
+
+function clearActuals() {
+  if (!confirm('Сбросить все фактические остатки?')) return;
+  ACCS.forEach(acc => {
+    const el = document.getElementById('actual-' + acc.id);
+    if (el) el.value = '';
+  });
+  localStorage.removeItem(KEY_ACTUALS);
+  actuals = {};
+  recalc();
+  toast('Фактические остатки сброшены');
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('dt-from').value = monthStartStr();
+  document.getElementById('dt-to').value   = todayStr();
+  buildUI();
+  loadFromCloud(); // данные из Google Таблицы
+});
+</script>
+</body>
+</html>
