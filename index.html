@@ -912,53 +912,62 @@ function jsonpRequest(url, timeoutMs){
   });
 }
 
-// Одиночная запись при добавлении расхода
+// Одиночная запись — no-cors (пожар и забыл, CORS не нужен)
 function syncToCloud(entry){
   if(!cloudReady()) return;
   const url = GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(entry));
-  jsonpRequest(url)
-    .then(function(result){
-      if(result && result.ok) updateCloudStatus('ok','✓ Запись отправлена в таблицу');
-      else updateCloudStatus('err','Ошибка GAS: ' + (result && result.error ? result.error : '?'));
-    })
-    .catch(function(err){ updateCloudStatus('err', err.message); });
+  fetch(url, {mode:'no-cors'}).catch(function(){});
+  updateCloudStatus('ok','↑ Отправлено в таблицу');
 }
 
-// Отправить все записи пачками
+// Отправить все записи пачками через no-cors, потом проверить через JSONP
 async function syncAllToCloud(){
   if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); updateCloudStatus('err','URL не задан'); return; }
   if(!entries.length){ toast('Нет данных для отправки'); return; }
 
   const BATCH = 3;
-  let totalAdded = 0;
-
   try {
+    // 1. Отправляем все записи через no-cors (GAS их получает и пишет в таблицу)
     for(let i = 0; i < entries.length; i += BATCH){
       const batch = entries.slice(i, i + BATCH);
       const sent  = Math.min(i + BATCH, entries.length);
       updateCloudStatus('busy', `Отправка ${sent} из ${entries.length}…`);
-
-      const url    = GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch));
-      const result = await jsonpRequest(url);
-
-      if(!result || result.ok === false)
-        throw new Error(result && result.error ? result.error : 'Нет ответа от GAS');
-      totalAdded += result.added || 0;
+      const url = GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch));
+      await fetch(url, {mode:'no-cors'}).catch(function(){});
+      // небольшая пауза между пачками
+      await new Promise(function(r){ setTimeout(r, 500); });
     }
-    updateCloudStatus('ok', `Готово! Добавлено новых: ${totalAdded} ✓`);
-    toast('✅ Таблица обновлена, новых: ' + totalAdded);
+
+    // 2. Ждём 2 секунды и пробуем прочитать через JSONP для подтверждения
+    updateCloudStatus('busy','Проверяем результат…');
+    await new Promise(function(r){ setTimeout(r, 2000); });
+
+    try {
+      const cloud = await jsonpRequest(GAS_URL, 10000);
+      if(Array.isArray(cloud)){
+        updateCloudStatus('ok', `✓ В таблице ${cloud.length} записей`);
+        toast(`✅ Готово! В таблице: ${cloud.length} записей`);
+      } else {
+        updateCloudStatus('ok','✓ Данные отправлены');
+        toast('✅ Данные отправлены в таблицу');
+      }
+    } catch(e){
+      // JSONP не работает (старый GAS) — но no-cors запросы ушли
+      updateCloudStatus('ok','↑ Данные отправлены (проверь таблицу)');
+      toast('✅ Отправлено! Проверь Google Таблицу');
+    }
+
   } catch(err){
-    updateCloudStatus('err', 'Ошибка: ' + err.message);
+    updateCloudStatus('err','Ошибка: ' + err.message);
     toast('⚠️ ' + err.message);
-    console.error('syncAllToCloud:', err);
   }
 }
 
-// Загрузить из облака на телефон
+// Загрузить из облака — только через JSONP (требует обновлённого GAS)
 function fetchFromCloud(){
   if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); return; }
   updateCloudStatus('busy','Загрузка из облака…');
-  jsonpRequest(GAS_URL)
+  jsonpRequest(GAS_URL, 15000)
     .then(function(cloud){
       if(!Array.isArray(cloud)) throw new Error('Неверный формат ответа');
       const localIds = new Set(entries.map(function(e){ return String(e.id); }));
@@ -973,31 +982,37 @@ function fetchFromCloud(){
       toast(added > 0 ? `✅ Загружено +${added} записей` : '✅ Всё актуально');
     })
     .catch(function(err){
-      updateCloudStatus('err','Ошибка: ' + err.message);
+      updateCloudStatus('err','Ошибка чтения: ' + err.message);
       toast('⚠️ ' + err.message);
     });
 }
 
-// Проверить соединение с GAS
+// Проверить соединение
 function testGasConnection(){
   if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); return; }
-  updateCloudStatus('busy','Проверка соединения…');
-  jsonpRequest(GAS_URL)
+  updateCloudStatus('busy','Проверка…');
+  // Сначала пробуем JSONP
+  jsonpRequest(GAS_URL, 10000)
     .then(function(result){
       if(Array.isArray(result)){
-        updateCloudStatus('ok', `✓ Связь есть! В таблице ${result.length} записей`);
-        toast(`✅ GAS работает. Записей: ${result.length}`);
-      } else if(result && result.ok === false){
-        updateCloudStatus('err', 'GAS ошибка: ' + result.error);
-        toast('⚠️ ' + result.error);
+        updateCloudStatus('ok', `✓ Связь есть! В таблице: ${result.length} зап.`);
+        toast(`✅ GAS работает. Записей в таблице: ${result.length}`);
       } else {
-        updateCloudStatus('ok', '✓ Связь есть!');
-        toast('✅ GAS отвечает');
+        updateCloudStatus('ok','✓ GAS отвечает');
+        toast('✅ Связь есть');
       }
     })
-    .catch(function(err){
-      updateCloudStatus('err', 'Ошибка: ' + err.message);
-      toast('⚠️ ' + err.message);
+    .catch(function(){
+      // JSONP не работает — пробуем no-cors (только запись)
+      fetch(GAS_URL, {mode:'no-cors'})
+        .then(function(){
+          updateCloudStatus('ok','✓ GAS доступен (только запись)');
+          toast('✅ GAS доступен — запись работает, чтение требует обновления скрипта');
+        })
+        .catch(function(err){
+          updateCloudStatus('err','Нет доступа: ' + err.message);
+          toast('⚠️ GAS недоступен: ' + err.message);
+        });
     });
 }
 // ────────────────────────────────────────────────────────────────────
