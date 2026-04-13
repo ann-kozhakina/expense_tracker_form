@@ -860,9 +860,8 @@ const ACCS=[
   {id:'invest',name:'Инвестсчёт',emoji:'📈'},
 ];
 
-// ── ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ ──────────────────────────────────────────
-// Вставь сюда URL твоего Google Apps Script после деплоя:
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFZ72n358MZDMgAQ_ut8GHZFwQzDbckfAkk452NNFAzFwl8NbxeRYq6urBsF6nWwxr/exec';   // например: 'https://script.google.com/macros/s/XXXXX/exec'
+// ── ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (JSONP — обходит CORS) ───────────────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFZ72n358MZDMgAQ_ut8GHZFwQzDbckfAkk452NNFAzFwl8NbxeRYq6urBsF6nWwxr/exec';
 
 function cloudReady(){ return !!GAS_URL && GAS_URL.startsWith('http'); }
 
@@ -871,32 +870,66 @@ function updateCloudStatus(state, msg){
   const text = document.getElementById('cloud-status-text');
   if(!dot) return;
   const colors = {ok:'#10B981', err:'#EF4444', busy:'#F59E0B', off:'#D1D5DB'};
-  dot.style.background  = colors[state] || colors.off;
+  dot.style.background = colors[state] || colors.off;
   text.textContent = msg;
 }
 
-function syncToCloud(entry){
-  // GAS делает redirect 302 на POST → браузер конвертирует в GET.
-  // Поэтому отправляем через GET с параметром ?entry=JSON
-  if(!cloudReady()) return;
-  fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(entry)))
-    .then(r => r.json())
-    .then(result => {
-      if(result.ok) updateCloudStatus('ok','✓ Запись отправлена в таблицу');
-      else updateCloudStatus('err','Ошибка GAS: ' + (result.error||'?'));
-    })
-    .catch(err => updateCloudStatus('err','Нет связи: ' + err.message));
+// JSONP-запрос: создаёт <script> тег, обходит CORS полностью
+function jsonpRequest(url, timeoutMs){
+  timeoutMs = timeoutMs || 15000;
+  return new Promise(function(resolve, reject){
+    const cbName = 'gasJSONP_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+
+    const timer = setTimeout(function(){
+      cleanup();
+      reject(new Error('Таймаут — GAS не ответил за 15 сек'));
+    }, timeoutMs);
+
+    function cleanup(){
+      if(done) return;
+      done = true;
+      clearTimeout(timer);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = function(){
+      cleanup();
+      reject(new Error('Ошибка загрузки скрипта — проверь URL и доступ'));
+    };
+
+    // Добавляем callback к URL
+    const sep = url.indexOf('?') === -1 ? '?' : '&';
+    script.src = url + sep + 'callback=' + cbName;
+    document.head.appendChild(script);
+  });
 }
 
-async function syncAllToCloud(){
-  if(!cloudReady()){
-    toast('⚠️ Задай GAS_URL в коде');
-    updateCloudStatus('err','URL не задан');
-    return;
-  }
-  if(!entries.length){ toast('Нет данных'); return; }
+// Одиночная запись при добавлении расхода
+function syncToCloud(entry){
+  if(!cloudReady()) return;
+  const url = GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(entry));
+  jsonpRequest(url)
+    .then(function(result){
+      if(result && result.ok) updateCloudStatus('ok','✓ Запись отправлена в таблицу');
+      else updateCloudStatus('err','Ошибка GAS: ' + (result && result.error ? result.error : '?'));
+    })
+    .catch(function(err){ updateCloudStatus('err', err.message); });
+}
 
-  const BATCH = 5; // по 5 записей за запрос
+// Отправить все записи пачками
+async function syncAllToCloud(){
+  if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); updateCloudStatus('err','URL не задан'); return; }
+  if(!entries.length){ toast('Нет данных для отправки'); return; }
+
+  const BATCH = 3;
   let totalAdded = 0;
 
   try {
@@ -905,80 +938,67 @@ async function syncAllToCloud(){
       const sent  = Math.min(i + BATCH, entries.length);
       updateCloudStatus('busy', `Отправка ${sent} из ${entries.length}…`);
 
-      const r      = await fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch)));
-      let result;
-      try { result = await r.json(); }
-      catch { throw new Error('GAS вернул не JSON (возможно, нужно переразвернуть скрипт с доступом "Все пользователи")'); }
-      if(!result || typeof result !== 'object' || Array.isArray(result))
-        throw new Error('Неверный формат ответа от GAS. Проверь логи выполнения скрипта.');
-      if(result.ok === false) throw new Error(result.error || 'Ошибка GAS');
+      const url    = GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch));
+      const result = await jsonpRequest(url);
+
+      if(!result || result.ok === false)
+        throw new Error(result && result.error ? result.error : 'Нет ответа от GAS');
       totalAdded += result.added || 0;
     }
-
-    updateCloudStatus('ok', `Готово, добавлено новых: ${totalAdded} ✓`);
+    updateCloudStatus('ok', `Готово! Добавлено новых: ${totalAdded} ✓`);
     toast('✅ Таблица обновлена, новых: ' + totalAdded);
-
   } catch(err){
     updateCloudStatus('err', 'Ошибка: ' + err.message);
     toast('⚠️ ' + err.message);
-    console.error('Sync error:', err);
+    console.error('syncAllToCloud:', err);
   }
 }
 
+// Загрузить из облака на телефон
 function fetchFromCloud(){
-  if(!cloudReady()){
-    toast('⚠️ Задай GAS_URL в коде');
-    updateCloudStatus('err','URL не задан');
-    return;
-  }
+  if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); return; }
   updateCloudStatus('busy','Загрузка из облака…');
-  fetch(GAS_URL + '?action=getAll')
-  .then(r => r.json())
-  .then(cloud => {
-    if(!Array.isArray(cloud)){ throw new Error('Неверный формат'); }
-    // Мержим: берём все ID из облака, добавляем те, которых нет локально
-    const localIds = new Set(entries.map(e => String(e.id)));
-    let added = 0;
-    cloud.forEach(e => {
-      if(!localIds.has(String(e.id))){ entries.push(e); added++; }
+  jsonpRequest(GAS_URL)
+    .then(function(cloud){
+      if(!Array.isArray(cloud)) throw new Error('Неверный формат ответа');
+      const localIds = new Set(entries.map(function(e){ return String(e.id); }));
+      let added = 0;
+      cloud.forEach(function(e){
+        if(!localIds.has(String(e.id))){ entries.push(e); added++; }
+      });
+      entries.sort(function(a,b){ return b.id - a.id; });
+      save();
+      renderHistory(); buildPeriods(); renderStats(); updateCount();
+      updateCloudStatus('ok', `Из облака: +${added} новых, всего ${entries.length}`);
+      toast(added > 0 ? `✅ Загружено +${added} записей` : '✅ Всё актуально');
+    })
+    .catch(function(err){
+      updateCloudStatus('err','Ошибка: ' + err.message);
+      toast('⚠️ ' + err.message);
     });
-    // Сортируем по убыванию id (новые сверху)
-    entries.sort((a,b) => b.id - a.id);
-    save();
-    renderHistory(); buildPeriods(); renderStats(); updateCount();
-    updateCloudStatus('ok', `Из облака: +${added} новых, всего ${entries.length}`);
-    toast(added > 0 ? `✅ Загружено +${added} записей` : '✅ Всё актуально');
-  })
-  .catch(err => {
-    updateCloudStatus('err','Ошибка загрузки: ' + err.message);
-    toast('⚠️ Не удалось загрузить: ' + err.message);
-  });
 }
 
-async function testGasConnection(){
+// Проверить соединение с GAS
+function testGasConnection(){
   if(!cloudReady()){ toast('⚠️ GAS_URL не задан'); return; }
   updateCloudStatus('busy','Проверка соединения…');
-  try {
-    const r    = await fetch(GAS_URL);
-    const text = await r.text();
-    let parsed;
-    try { parsed = JSON.parse(text); } catch { parsed = null; }
-    if(Array.isArray(parsed)){
-      updateCloudStatus('ok',`✓ Связь есть! В таблице ${parsed.length} записей`);
-      toast(`✅ GAS работает. Записей в таблице: ${parsed.length}`);
-    } else if(parsed && parsed.ok === false){
-      updateCloudStatus('err','GAS вернул ошибку: ' + parsed.error);
-      toast('⚠️ GAS ошибка: ' + parsed.error);
-    } else {
-      updateCloudStatus('err','Неожиданный ответ (не JSON-массив)');
-      toast('⚠️ Ответ: ' + text.substring(0,80));
-      console.warn('GAS raw response:', text);
-    }
-  } catch(err){
-    updateCloudStatus('err','Ошибка запроса: ' + err.message);
-    toast('⚠️ ' + err.message);
-    console.error('testGasConnection:', err);
-  }
+  jsonpRequest(GAS_URL)
+    .then(function(result){
+      if(Array.isArray(result)){
+        updateCloudStatus('ok', `✓ Связь есть! В таблице ${result.length} записей`);
+        toast(`✅ GAS работает. Записей: ${result.length}`);
+      } else if(result && result.ok === false){
+        updateCloudStatus('err', 'GAS ошибка: ' + result.error);
+        toast('⚠️ ' + result.error);
+      } else {
+        updateCloudStatus('ok', '✓ Связь есть!');
+        toast('✅ GAS отвечает');
+      }
+    })
+    .catch(function(err){
+      updateCloudStatus('err', 'Ошибка: ' + err.message);
+      toast('⚠️ ' + err.message);
+    });
 }
 // ────────────────────────────────────────────────────────────────────
 
