@@ -868,47 +868,44 @@ function updateCloudStatus(state, msg){
 }
 
 function syncToCloud(entry){
+  // GAS делает redirect 302 на POST → браузер конвертирует в GET.
+  // Поэтому отправляем через GET с параметром ?entry=JSON
   if(!cloudReady()) return;
-  // Без mode:'no-cors' — иначе GAS redirect обрывает запрос
-  fetch(GAS_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify(entry)
-  }).catch(()=>{});
+  fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(entry)))
+    .catch(()=>{});
 }
 
-function syncAllToCloud(){
+async function syncAllToCloud(){
   if(!cloudReady()){
     toast('⚠️ Задай GAS_URL в коде');
     updateCloudStatus('err','URL не задан');
     return;
   }
   if(!entries.length){ toast('Нет данных'); return; }
-  updateCloudStatus('busy','Отправка…');
-  fetch(GAS_URL, {
-    method:'POST',
-    headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify(entries)
-  })
-  .then(r => {
-    // Пробуем прочитать ответ
-    return r.text().then(txt => {
-      try { return JSON.parse(txt); } catch(e) { return {ok: true}; }
-    });
-  })
-  .then(result => {
-    if(result && result.ok === false){
-      throw new Error(result.error || 'Ошибка сервера');
+
+  const BATCH = 5; // по 5 записей за запрос
+  let totalAdded = 0;
+
+  try {
+    for(let i = 0; i < entries.length; i += BATCH){
+      const batch = entries.slice(i, i + BATCH);
+      const sent  = Math.min(i + BATCH, entries.length);
+      updateCloudStatus('busy', `Отправка ${sent} из ${entries.length}…`);
+
+      const r      = await fetch(GAS_URL + '?entry=' + encodeURIComponent(JSON.stringify(batch)));
+      const result = await r.json();
+      if(result.ok === false) throw new Error(result.error || 'Ошибка сервера');
+      totalAdded += result.added || 0;
     }
-    const added = result?.added ?? '?';
-    updateCloudStatus('ok', `Отправлено, записей добавлено: ${added} ✓`);
-    toast('✅ Данные в таблице обновлены');
-  })
-  .catch(err => {
-    updateCloudStatus('err', 'Ошибка отправки: ' + err.message);
-    toast('⚠️ Не удалось отправить: ' + err.message);
+
+    updateCloudStatus('ok', `Готово, добавлено новых: ${totalAdded} ✓`);
+    toast('✅ Таблица обновлена, новых: ' + totalAdded);
+
+  } catch(err){
+    updateCloudStatus('err', 'Ошибка: ' + err.message);
+    toast('⚠️ ' + err.message);
     console.error('Sync error:', err);
-  });
+  }
 }
 
 function fetchFromCloud(){
