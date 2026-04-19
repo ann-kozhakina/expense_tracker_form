@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отчёт · Тестирование · Весна 2026 · AB Road</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Mulish:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bordeaux: #5C1A3A;
+  --teal: #2BBFBF;
+  --white: #FFFFFF;
+  --bg: #F7F5F2;
+  --bg2: #EEEBE6;
+  --border: rgba(0,0,0,.08);
+  --text: #1A1210;
+  --text-muted: #7A6E6A;
+  --text-hint: #B0A8A4;
+  --font-head: 'Unbounded', sans-serif;
+  --font-body: 'Mulish', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+/* ── HEADER ── */
+.rpt-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px; }
+.rpt-title  { font-family: var(--font-head); font-size: 22px; font-weight: 700; color: var(--bordeaux); line-height: 1.2; }
+.rpt-sub    { font-family: var(--font-head); font-size: 10px; font-weight: 400; color: var(--text-hint); margin-top: 5px; letter-spacing: .06em; }
+.rpt-meta   { font-size: 11px; color: var(--text-hint); text-align: right; line-height: 1.7; }
+
+/* ── SECTIONS ── */
+.section      { margin-bottom: 44px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.section-title {
+  font-family: var(--font-head); font-size: 9px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--text-hint);
+}
+.section-note { font-size: 11px; color: var(--text-hint); font-style: italic; }
+
+/* ── STAT CARDS ── */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.stat-card    { background: var(--white); border: 0.5px solid var(--border); border-radius: 18px; padding: 20px 22px; }
+.stat-label   { font-family: var(--font-head); font-size: 8px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 10px; }
+.stat-val     { font-family: var(--font-head); font-size: 38px; font-weight: 700; color: var(--bordeaux); line-height: 1; letter-spacing: -.02em; }
+.stat-val .u  { font-size: 17px; font-weight: 400; opacity: .45; }
+.stat-note    { font-size: 11px; color: var(--text-muted); margin-top: 7px; }
+
+/* ── LEVEL CARDS ── */
+.level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.level-card { background: var(--white); border: 0.5px solid var(--border); border-radius: 18px; padding: 18px 20px 20px; }
+.level-tag  {
+  display: inline-flex; font-family: var(--font-head); font-size: 9px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase; padding: 3px 10px; border-radius: 6px; margin-bottom: 14px;
+}
+.level-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.level-row  { display: flex; align-items: center; justify-content: space-between; }
+.level-row-lbl { font-size: 11px; color: var(--text-muted); }
+.level-row-val { font-family: var(--font-head); font-size: 12px; font-weight: 700; }
+.skill-bars   { display: flex; flex-direction: column; gap: 5px; }
+.sb-row       { display: grid; grid-template-columns: 74px 1fr 34px; align-items: center; gap: 6px; }
+.sb-lbl       { font-size: 10px; color: var(--text-muted); }
+.sb-track     { height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+.sb-fill      { height: 100%; border-radius: 3px; }
+.sb-pct       { font-family: var(--font-head); font-size: 9px; font-weight: 700; text-align: right; }
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; border-radius: 18px; border: 0.5px solid var(--border); }
+.data-tbl { width: 100%; border-collapse: collapse; background: var(--white); }
+.data-tbl th {
+  font-family: var(--font-head); font-size: 8px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-hint); padding: 12px 14px;
+  text-align: left; background: var(--bg2); border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+.data-tbl th.r { text-align: right; }
+.data-tbl td   { padding: 10px 14px; border-bottom: 0.5px solid var(--border); font-size: 12px; vertical-align: middle; }
+.data-tbl tr:last-child td { border-bottom: none; }
+.data-tbl tr:hover td      { background: rgba(43,191,191,.03); }
+.td-name  { font-family: var(--font-head); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.td-muted { color: var(--text-muted); }
+.td-r     { text-align: right; }
+.td-num   { font-family: var(--font-head); font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+/* ── BADGES ── */
+.badge    { display: inline-flex; align-items: center; font-family: var(--font-head); font-size: 8px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; white-space: nowrap; }
+.b-green  { background: rgba(42,122,42,.12); color: #1A6020; }
+.b-teal   { background: rgba(43,191,191,.14); color: #0A6A6A; }
+.b-yellow { background: rgba(212,133,10,.12); color: #9A5C00; }
+.b-red    { background: rgba(92,26,58,.12); color: #5C1A3A; }
+.b-gray   { background: var(--bg2); color: var(--text-muted); }
+
+/* level colors */
+.lc-starters { background: rgba(212,133,10,.12); color: #9A5C00; }
+.lc-movers   { background: rgba(107,53,168,.10); color: #5A2080; }
+.lc-flyers   { background: rgba(42,122,42,.10);  color: #1A6020; }
+.lc-key      { background: rgba(26,106,154,.12); color: #0A4A7A; }
+.lc-pet      { background: rgba(139,31,90,.10);  color: #6A0040; }
+.lc-other    { background: var(--bg2); color: var(--text-muted); }
+
+/* bar inline */
+.bar-cell  { display: flex; align-items: center; gap: 7px; }
+.mini-bar  { width: 52px; height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.mini-fill { height: 100%; border-radius: 3px; }
+
+/* outlier arrows */
+.oa { color: var(--teal);    font-size: 13px; font-weight: 700; }
+.ob { color: var(--bordeaux); font-size: 13px; font-weight: 700; }
+
+/* ── FILTER BAR ── */
+.filter-bar   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.flt-select   {
+  font-family: var(--font-body); font-size: 12px;
+  padding: 7px 12px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--white); color: var(--text); cursor: pointer;
+}
+
+/* ── LOADING ── */
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; gap: 14px; color: var(--text-hint); }
+.spinner { width: 26px; height: 26px; border: 2.5px solid var(--bg2); border-top-color: var(--teal); border-radius: 50%; animation: spin .75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { padding: 22px 16px; text-align: center; font-style: italic; color: var(--text-hint); font-size: 12px; }
+
+/* ── PRINT ── */
+@media print {
+  body { background: white; }
+  .filter-bar, .flt-select { display: none; }
+  .section { break-inside: avoid; page-break-inside: avoid; }
+  .page { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="app"><div class="loading"><div class="spinner"></div><span>Загружаем данные из таблицы…</span></div></div>
+</div>
+
+<script>
+'use strict';
+const SHEET_ID = '1POSNc2t9qv0HtnuCTIu0Htn9ZohqaBv7PWl3b-eoO8E';
+
+function gvizUrl(sheet) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(sheet)}`;
+}
+async function fetchSheet(sheet) {
+  const r   = await fetch(gvizUrl(sheet));
+  const txt = await r.text();
+  const m   = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+  if (!m) throw new Error(`Не удалось загрузить лист «${sheet}»`);
+  return JSON.parse(m[1]).table.rows;
+}
+
+// ── parse helpers ──
+function strVal(c) {
+  if (!c || c.v == null) return '';
+  return String(c.v).trim();
+}
+function cellPct(c) {
+  if (!c || c.v == null) return null;
+  const v = c.v;
+  if (typeof v === 'number') return v <= 1 ? Math.round(v * 100) : Math.round(v);
+  const raw = String(c.f || v).replace('%','').replace(',','.').trim();
+  if (!raw || raw === '-' || raw === 'Резерв' || raw.includes('VALUE') || raw === '-%-') return null;
+  const n = parseFloat(raw);
+  return isNaN(n) ? null : Math.round(n);
+}
+function avg(arr) {
+  const v = arr.filter(x => x !== null && !isNaN(x));
+  return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null;
+}
+
+// ── level helpers ──
+function normLevel(raw) {
+  const l = raw.toLowerCase();
+  if (l.includes('starter')) return 'Starters';
+  if (l.includes('mover'))   return 'Movers';
+  if (l.includes('flyer'))   return 'Flyers';
+  if (l.includes('key'))     return 'KEY';
+  if (l.includes('prelim') || l.includes('pet')) return 'PET';
+  return raw || '?';
+}
+function lvlCls(level) {
+  const l = level.toLowerCase();
+  if (l.includes('starter')) return 'starters';
+  if (l.includes('mover'))   return 'movers';
+  if (l.includes('flyer'))   return 'flyers';
+  if (l.includes('key'))     return 'key';
+  if (l.includes('pet') || l.includes('prelim')) return 'pet';
+  return 'other';
+}
+function lvlBadge(level) {
+  return `<span class="badge lc-${lvlCls(level)}">${level}</span>`;
+}
+
+// ── parse sheets ──
+// Data: cols 0=Уровень 1=Группа 2=№ 3=Ребёнок 6=Lis% 9=RW% 12=Spk% 15=Total%
+// Data_high: cols 0=Уровень 1=Группа 2=№ 3=Ребёнок 6=Lis% 9=Read% 12=Wrt% 15=Spk% 18=Total%
+function parseRows(rows, isHigh) {
+  const out = [];
+  if (!rows) return out;
+  rows.forEach(row => {
+    if (!row.c) return;
+    const c = row.c;
+    const level = normLevel(strVal(c[0]));
+    const group = strVal(c[1]);
+    const name  = strVal(c[3]);
+    if (!name) return;
+    if (!isHigh) {
+      const lis   = cellPct(c[6]);
+      const rw    = cellPct(c[9]);
+      const spk   = cellPct(c[12]);
+      const total = cellPct(c[15]);
+      out.push({ level, group, name, listening: lis, reading: null, writing: null, rw, speaking: spk, total, isHigh: false });
+    } else {
+      const lis   = cellPct(c[6]);
+      const read  = cellPct(c[9]);
+      const wrt   = cellPct(c[12]);
+      const spk   = cellPct(c[15]);
+      const total = cellPct(c[18]);
+      const rw    = avg([read, wrt]);
+      out.push({ level, group, name, listening: lis, reading: read, writing: wrt, rw, speaking: spk, total, isHigh: true });
+    }
+  });
+  return out;
+}
+
+// ── colour helpers ──
+function pctCol(v) {
+  if (v === null) return 'var(--text-hint)';
+  return v >= 70 ? '#2BBFBF' : v >= 50 ? '#D4850A' : '#5C1A3A';
+}
+function pctCls(v) {
+  if (v === null) return 'b-gray';
+  return v >= 70 ? 'b-teal' : v >= 50 ? 'b-yellow' : 'b-red';
+}
+function barFill(v) {
+  const col = v >= 70 ? '#2BBFBF' : v >= 50 ? '#D4850A' : '#5C1A3A';
+  return `<div class="mini-bar"><div class="mini-fill" style="width:${v}%;background:${col}"></div></div>`;
+}
+function numCell(v) {
+  if (v === null) return `<span style="color:var(--text-hint)">—</span>`;
+  const col = pctCol(v);
+  return `<div class="bar-cell">${barFill(v)}<span class="td-num" style="color:${col}">${v}%</span></div>`;
+}
+function skillNum(v) {
+  if (v === null) return `<span style="color:var(--text-hint);font-size:11px">—</span>`;
+  return `<span style="font-family:var(--font-head);font-size:12px;font-weight:700;color:${pctCol(v)}">${v}%</span>`;
+}
+function sbRow(label, v) {
+  const col = v === null ? 'var(--bg2)' : pctCol(v);
+  const pc  = v === null ? 'var(--text-hint)' : col;
+  return `<div class="sb-row">
+    <span class="sb-lbl">${label}</span>
+    <div class="sb-track"><div class="sb-fill" style="width:${v||0}%;background:${col}"></div></div>
+    <span class="sb-pct" style="color:${pc}">${v !== null ? v+'%' : '—'}</span>
+  </div>`;
+}
+function statusBadge(t) {
+  if (t === null)  return `<span class="badge b-gray">не завершён</span>`;
+  if (t >= 80)     return `<span class="badge b-teal">Перевод ↑↑</span>`;
+  if (t >= 70)     return `<span class="badge b-teal" style="opacity:.75">Перевод</span>`;
+  if (t >= 50)     return `<span class="badge b-gray">Уровень</span>`;
+  return `<span class="badge b-red">Внимание</span>`;
+}
+
+// ── compute group/level stats ──
+function byLevel(students) {
+  const map = {};
+  students.forEach(s => {
+    if (!map[s.level]) map[s.level] = [];
+    map[s.level].push(s);
+  });
+  const ORDER = ['Starters','Movers','Flyers','KEY','PET'];
+  return Object.entries(map)
+    .sort((a,b) => {
+      const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]);
+      return (ia<0?99:ia)-(ib<0?99:ib);
+    })
+    .map(([level, ss]) => {
+      const done = ss.filter(s => s.total !== null);
+      const pass = done.filter(s => s.total >= 70);
+      return {
+        level, count: ss.length, wrote: done.length,
+        avg: avg(done.map(s=>s.total)),
+        passing: pass.length,
+        passRate: done.length ? Math.round(pass.length/done.length*100) : 0,
+        avgLis: avg(ss.map(s=>s.listening).filter(v=>v!==null)),
+        avgRW:  avg(ss.map(s=>s.rw).filter(v=>v!==null)),
+        avgSpk: avg(ss.map(s=>s.speaking).filter(v=>v!==null)),
+      };
+    });
+}
+
+function byGroup(students) {
+  const map = {};
+  students.forEach(s => {
+    if (!map[s.group]) map[s.group] = { group:s.group, levels:new Set(), ss:[] };
+    map[s.group].ss.push(s);
+    map[s.group].levels.add(s.level);
+  });
+  return Object.values(map).map(g => {
+    const done = g.ss.filter(s=>s.total!==null);
+    const pass = done.filter(s=>s.total>=70);
+    return {
+      group: g.group,
+      levels: [...g.levels].join(', '),
+      count: g.ss.length, wrote: done.length,
+      avg: avg(done.map(s=>s.total)),
+      passing: pass.length,
+      passRate: done.length ? Math.round(pass.length/done.length*100):0,
+      avgLis: avg(g.ss.map(s=>s.listening).filter(v=>v!==null)),
+      avgRW:  avg(g.ss.map(s=>s.rw).filter(v=>v!==null)),
+      avgSpk: avg(g.ss.map(s=>s.speaking).filter(v=>v!==null)),
+    };
+  }).sort((a,b)=>(b.avg||0)-(a.avg||0));
+}
+
+function groupAvgs(students) {
+  const map = {};
+  students.forEach(s => {
+    if (!map[s.group]) map[s.group] = [];
+    if (s.total !== null) map[s.group].push(s.total);
+  });
+  const out = {};
+  Object.entries(map).forEach(([g,v]) => { out[g] = avg(v); });
+  return out;
+}
+
+// ── render ──
+function render(students) {
+  const lvlStats  = byLevel(students);
+  const grpStats  = byGroup(students);
+  const gAvgs     = groupAvgs(students);
+  const withTotal = students.filter(s=>s.total!==null);
+  const passing   = withTotal.filter(s=>s.total>=70);
+  const transfer  = withTotal.filter(s=>s.total>=80);
+  const attention = withTotal.filter(s=>s.total<50);
+  const overall   = avg(withTotal.map(s=>s.total));
+  const now       = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('app').innerHTML = `
+
+  <!-- HEADER -->
+  <div class="rpt-header">
+    <div>
+      <div class="rpt-title">Тестирование · Весна 2026</div>
+      <div class="rpt-sub">AB Road Studio · внутренний отчёт для преподавателей</div>
+    </div>
+    <div class="rpt-meta">
+      Данные: ${now}<br>
+      <span style="color:var(--teal);font-weight:700">${withTotal.length}</span> детей написали тест
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="section-title">Общая сводка</div>
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="stat-label">Написали тест</div>
+        <div class="stat-val">${withTotal.length}<span class="u"> / ${students.length}</span></div>
+        <div class="stat-note">${students.length-withTotal.length>0?`ещё ${students.length-withTotal.length} не завершили`:'все завершили тест'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Прошли 70%+</div>
+        <div class="stat-val">${passing.length}<span class="u"> / ${withTotal.length}</span></div>
+        <div class="stat-note">${withTotal.length?Math.round(passing.length/withTotal.length*100):0}% от написавших</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Средний балл</div>
+        <div class="stat-val">${overall??'—'}<span class="u">%</span></div>
+        <div class="stat-note">по всем написавшим</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Уверенный перевод (80%+)</div>
+        <div class="stat-val">${transfer.length}<span class="u"> / ${passing.length}</span></div>
+        <div class="stat-note">из прошедших 70%+</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Требуют внимания (&lt;50%)</div>
+        <div class="stat-val" style="color:${attention.length>0?'var(--bordeaux)':'var(--teal)'}">${attention.length}</div>
+        <div class="stat-note">${attention.length>0?'детей ниже 50%':'отличный результат'}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BY LEVEL -->
+  <div class="section">
+    <div class="section-title">По уровням</div>
+    <div class="level-grid">
+      ${lvlStats.map(l => `
+      <div class="level-card">
+        <div class="level-tag lc-${lvlCls(l.level)}">${l.level}</div>
+        <div class="level-rows">
+          <div class="level-row">
+            <span class="level-row-lbl">Написали</span>
+            <span class="level-row-val">${l.wrote} <span style="color:var(--text-hint);font-weight:400;font-size:10px">/ ${l.count}</span></span>
+          </div>
+          <div class="level-row">
+            <span class="level-row-lbl">Прошли 70%+</span>
+            <span class="level-row-val" style="color:${l.passRate>=70?'#2BBFBF':l.passRate>=50?'#D4850A':'#5C1A3A'}">${l.passing} (${l.passRate}%)</span>
+          </div>
+          <div class="level-row">
+            <span class="level-row-lbl">Средний балл</span>
+            <span class="level-row-val" style="color:${pctCol(l.avg)}">${l.avg??'—'}%</span>
+          </div>
+        </div>
+        <div class="skill-bars">
+          ${sbRow('Listening', l.avgLis)}
+          ${sbRow('Reading & Writing', l.avgRW)}
+          ${sbRow('Speaking', l.avgSpk)}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- BY GROUP -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">По группам</div>
+      <div class="section-note">сортировка по среднему баллу</div>
+    </div>
+    <div class="tbl-wrap">
+    <table class="data-tbl">
+      <thead><tr>
+        <th>Группа</th>
+        <th>Уровень</th>
+        <th class="r">Детей</th>
+        <th>Средний балл</th>
+        <th class="r">70%+</th>
+        <th>Listening</th>
+        <th>Reading &amp; Writing</th>
+        <th>Speaking</th>
+      </tr></thead>
+      <tbody>
+        ${grpStats.map(g=>`
+        <tr>
+          <td class="td-name">${g.group}</td>
+          <td class="td-muted">${g.levels}</td>
+          <td class="td-r td-muted">${g.wrote}${g.wrote!==g.count?` <span style="font-size:10px;opacity:.55">/ ${g.count}</span>`:''}</td>
+          <td>${numCell(g.avg)}</td>
+          <td class="td-r"><span style="font-family:var(--font-head);font-size:12px;font-weight:700;color:${g.passRate>=70?'#2BBFBF':g.passRate>=50?'#D4850A':'#5C1A3A'}">${g.passing} <span style="opacity:.5;font-weight:400">(${g.passRate}%)</span></span></td>
+          <td>${numCell(g.avgLis)}</td>
+          <td>${numCell(g.avgRW)}</td>
+          <td>${numCell(g.avgSpk)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- TRANSFER CANDIDATES -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Кандидаты к переводу · 70%+</div>
+      <div class="section-note">${passing.length} детей · порог 70–80%: рассматривать · 80%+: уверенно</div>
+    </div>
+    ${passing.length===0?'<div class="empty">Пока нет результатов ≥ 70%</div>':`
+    <div class="tbl-wrap">
+    <table class="data-tbl">
+      <thead><tr>
+        <th>#</th><th>Ребёнок</th><th>Уровень</th><th>Группа</th>
+        <th>Итог</th><th>Listening</th><th>R &amp; W</th><th>Speaking</th><th>Статус</th>
+      </tr></thead>
+      <tbody>
+        ${passing.slice().sort((a,b)=>(b.total||0)-(a.total||0)).map((s,i)=>`
+        <tr>
+          <td style="color:var(--text-hint);font-size:11px">${i+1}</td>
+          <td class="td-name">${s.name}</td>
+          <td>${lvlBadge(s.level)}</td>
+          <td class="td-muted">${s.group}</td>
+          <td>${numCell(s.total)}</td>
+          <td>${skillNum(s.listening)}</td>
+          <td>${skillNum(s.rw)}</td>
+          <td>${skillNum(s.speaking)}</td>
+          <td>${statusBadge(s.total)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`}
+  </div>
+
+  <!-- NEEDS ATTENTION -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Требуют внимания · менее 50%</div>
+      <div class="section-note">${attention.length} детей</div>
+    </div>
+    ${attention.length===0
+      ?'<div class="empty">Нет детей ниже 50% — отличный результат!</div>'
+      :`<div class="tbl-wrap">
+    <table class="data-tbl">
+      <thead><tr>
+        <th>Ребёнок</th><th>Уровень</th><th>Группа</th>
+        <th>Итог</th><th>Listening</th><th>R &amp; W</th><th>Speaking</th><th>Слабее всего</th>
+      </tr></thead>
+      <tbody>
+        ${attention.slice().sort((a,b)=>(a.total||0)-(b.total||0)).map(s=>{
+          const skills=[['Listening',s.listening],['R & W',s.rw],['Speaking',s.speaking]];
+          const weak=skills.filter(([,v])=>v!==null).sort((a,b)=>a[1]-b[1])[0];
+          return `<tr>
+            <td class="td-name">${s.name}</td>
+            <td>${lvlBadge(s.level)}</td>
+            <td class="td-muted">${s.group}</td>
+            <td>${numCell(s.total)}</td>
+            <td>${skillNum(s.listening)}</td>
+            <td>${skillNum(s.rw)}</td>
+            <td>${skillNum(s.speaking)}</td>
+            <td>${weak?`<span class="badge b-red">${weak[0]}: ${weak[1]}%`+'</span>':'—'}</td>
+          </tr>`;}).join('')}
+      </tbody>
+    </table>
+    </div>`}
+  </div>
+
+  <!-- ALL STUDENTS -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Все дети</div>
+      <div class="section-note" id="tbl-count">${students.length} записей</div>
+    </div>
+    <div class="filter-bar">
+      <select class="flt-select" id="fLevel" onchange="filterAll()">
+        <option value="">Все уровни</option>
+        ${[...new Set(students.map(s=>s.level))].sort().map(l=>`<option value="${l}">${l}</option>`).join('')}
+      </select>
+      <select class="flt-select" id="fGroup" onchange="filterAll()">
+        <option value="">Все группы</option>
+        ${[...new Set(students.map(s=>s.group))].sort().map(g=>`<option value="${g}">${g}</option>`).join('')}
+      </select>
+      <select class="flt-select" id="fStatus" onchange="filterAll()">
+        <option value="">Все статусы</option>
+        <option value="transfer80">Уверенный перевод (80%+)</option>
+        <option value="transfer">Кандидат к переводу (70%+)</option>
+        <option value="ok">Остаётся на уровне (50–69%)</option>
+        <option value="attention">Требует внимания (&lt;50%)</option>
+        <option value="incomplete">Не завершили</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+    <table class="data-tbl">
+      <thead><tr>
+        <th>Ребёнок</th><th>Уровень</th><th>Группа</th>
+        <th>Итог</th><th>Listening</th><th>R &amp; W</th><th>Speaking</th>
+        <th>vs группа</th><th>Статус</th>
+      </tr></thead>
+      <tbody id="allBody">
+        ${students.map(s=>{
+          const ga  = gAvgs[s.group];
+          const dev = (s.total!==null && ga!==null) ? s.total-ga : null;
+          const devHtml = dev===null ? '<span style="color:var(--text-hint)">—</span>'
+            : Math.abs(dev)<10 ? '<span style="color:var(--text-hint);font-size:11px">в среднем</span>'
+            : dev>0  ? `<span class="oa">↑ +${Math.round(dev)}%</span>`
+                     : `<span class="ob">↓ ${Math.round(dev)}%</span>`;
+          const st = s.total===null?'incomplete':s.total>=80?'transfer80':s.total>=70?'transfer':s.total>=50?'ok':'attention';
+          return `<tr data-level="${s.level}" data-group="${s.group}" data-status="${st}">
+            <td class="td-name">${s.name}</td>
+            <td>${lvlBadge(s.level)}</td>
+            <td class="td-muted">${s.group}</td>
+            <td>${numCell(s.total)}</td>
+            <td>${skillNum(s.listening)}</td>
+            <td>${skillNum(s.rw)}</td>
+            <td>${skillNum(s.speaking)}</td>
+            <td style="font-size:12px">${devHtml}</td>
+            <td>${statusBadge(s.total)}</td>
+          </tr>`;}).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+function filterAll() {
+  const lvl = document.getElementById('fLevel').value;
+  const grp = document.getElementById('fGroup').value;
+  const sts = document.getElementById('fStatus').value;
+  let count = 0;
+  document.querySelectorAll('#allBody tr').forEach(tr => {
+    const ok = (!lvl || tr.dataset.level===lvl)
+            && (!grp || tr.dataset.group===grp)
+            && (!sts || tr.dataset.status===sts);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) count++;
+  });
+  const el = document.getElementById('tbl-count');
+  if (el) el.textContent = count + ' записей';
+}
+
+(async () => {
+  try {
+    const [r1, r2] = await Promise.all([fetchSheet('Data'), fetchSheet('Data_high')]);
+    const students = [...parseRows(r1,false), ...parseRows(r2,true)];
+    render(students);
+  } catch(e) {
+    document.getElementById('app').innerHTML = `
+      <div class="loading" style="color:var(--bordeaux)">
+        <div style="font-size:14px;font-weight:700">Ошибка загрузки данных</div>
+        <div style="font-size:11px;color:var(--text-hint)">${e.message}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px">Страница должна быть открыта с веб-сервера, не через file://</div>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>
