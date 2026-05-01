@@ -518,30 +518,53 @@ function renderAll(entries) {
   document.getElementById('tot-onetime').textContent = fmt(totOne);
 
   // ── ПЕРЕВОДЫ НА НАКОПЛЕНИЯ (нетто: пришло минус ушло)
-  // Если взяла деньги с НС и вернула — считаем нетто, не дублируем
-  const savMap = {};
+  // Храним все операции по каждому счёту для детализации
+  const savIn  = {};  // пополнения
+  const savOut = {};  // снятия
   entries.forEach(function(e) {
-    if (e.type !== 'transfer') return;
+    const amt    = +e.amount || 0;
+    const fromId = e.from ? (e.from.id || '') : '';
     const toId   = e.to   ? (e.to.id   || '') : '';
-    const fromId = e.from ? (e.from.id  || '') : '';
-    const amt = +e.amount || 0;
-    // Деньги пришли НА накопительный счёт
-    if (SAVINGS_ACCS[toId])   savMap[toId]   = (savMap[toId]  ||0) + amt;
-    // Деньги ушли С накопительного счёта (займ/изъятие) — вычитаем
-    if (SAVINGS_ACCS[fromId]) savMap[fromId] = (savMap[fromId]||0) - amt;
+
+    if (e.type === 'transfer') {
+      // Перевод НА накопительный счёт
+      if (SAVINGS_ACCS[toId])   savIn[toId]    = (savIn[toId]  ||0) + amt;
+      // Перевод С накопительного счёта
+      if (SAVINGS_ACCS[fromId]) savOut[fromId] = (savOut[fromId]||0) + amt;
+    } else if (e.type === 'expense') {
+      // Расход, оплаченный напрямую с накопительного счёта
+      if (SAVINGS_ACCS[fromId]) savOut[fromId] = (savOut[fromId]||0) + amt;
+    }
   });
+
+  const allSavAccs = new Set([...Object.keys(savIn), ...Object.keys(savOut)]);
   let totSav = 0;
   let savHtml = '';
-  Object.entries(savMap).forEach(function([k,v]){
-    if (v === 0) return; // нетто ноль — не показываем
-    const cls  = v < 0 ? 'neg' : '';
-    const note = v < 0 ? 'изъятие / возврат займа' : '';
-    savHtml += makeRow(SAVINGS_ACCS[k], note, Math.abs(v), cls);
-    totSav += v;
+
+  allSavAccs.forEach(function(k) {
+    const inAmt  = savIn[k]  || 0;
+    const outAmt = savOut[k] || 0;
+    const net    = inAmt - outAmt;
+    totSav += net;
+
+    // Строка: название счёта + нетто
+    const netCls = net < 0 ? 'neg' : net === 0 ? '' : 'pos';
+    savHtml += `<div class="auto-row" style="border-bottom:1px solid var(--surf-mid)">
+      <div>
+        <div class="auto-row-label" style="font-weight:700">${SAVINGS_ACCS[k]||k}</div>
+        <div class="auto-row-sub" style="color:var(--green)">▲ пополнено: ${fmt(inAmt)}</div>
+        ${outAmt ? `<div class="auto-row-sub" style="color:var(--red)">▼ снято: ${fmt(outAmt)}</div>` : ''}
+      </div>
+      <div class="auto-row-amount ${netCls}" style="font-size:15px">
+        ${net >= 0 ? '' : '−'}${fmt(Math.abs(net))}
+        <div style="font-size:10px;font-weight:400;color:var(--mid);text-align:right">нетто</div>
+      </div>
+    </div>`;
   });
+
   document.getElementById('savings-rows').innerHTML = savHtml || '<div class="auto-empty">Нет переводов на накопления</div>';
   const savEl = document.getElementById('tot-savings');
-  savEl.textContent = fmt(Math.abs(totSav));
+  savEl.textContent = (totSav < 0 ? '−' : '') + fmt(Math.abs(totSav));
   savEl.className = 'card-total' + (totSav < 0 ? ' neg' : '');
 
   // ── ИТОГИ
