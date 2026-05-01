@@ -162,14 +162,59 @@ body {
 .toast.show { opacity: 1; }
 
 @media print {
-  .month-bar, .action-bar, #status-bar, .btn-load { display: none; }
-  body { max-width: 100%; }
+  /* Скрываем интерфейс */
+  .month-bar, .action-bar, #status-bar, .toast, .flag-chip { display: none !important; }
+  body { max-width: 100%; background: white; padding-bottom: 0; font-size: 11pt; }
+
+  /* Показываем печатную шапку */
+  .print-header { display: block !important; }
+
+  /* Карточки без теней */
+  .card { box-shadow: none; border: 1px solid #ccc; margin: 8px 0; border-radius: 8px; }
+  .card-header { background: #f5f5f5; }
+  .summary-card { background: #3A0722 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Флаги — показываем только активные как текст */
+  .flags-print { display: block !important; }
+
+  /* Поля ввода как текст */
+  .f input, .f textarea { border: none; background: transparent; padding: 0; font-size: 11pt; }
+  .fields-grid { gap: 6px; }
+
+  /* Разбивка страниц */
+  .card { page-break-inside: avoid; }
+  .summary-card { page-break-inside: avoid; }
 }
 </style>
 </head>
 <body>
 
-<div class="header">
+<!-- ── ПЕЧАТНАЯ ШАПКА (скрыта на экране, видна в PDF) ── -->
+<div class="print-header" style="display:none; padding:24px 32px 16px; border-bottom:2px solid #3A0722;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div style="font-size:9pt; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Семья Кожакина — Финансовый документ</div>
+      <div style="font-size:20pt; font-weight:700; color:#3A0722;" id="print-title">Финансовый паспорт</div>
+      <div style="font-size:12pt; color:#555; margin-top:2px;" id="print-month-sub"></div>
+    </div>
+    <div style="text-align:right; font-size:9pt; color:#666;">
+      <div>Дата формирования:</div>
+      <div id="print-date" style="font-weight:600; color:#333;"></div>
+      <div style="margin-top:6px;">Документ подготовлен для</div>
+      <div style="font-weight:600; color:#333;">стипендиального фонда школы</div>
+    </div>
+  </div>
+  <div style="margin-top:14px; padding:10px 14px; background:#fff8f0; border-left:3px solid #B56E00; border-radius:0 6px 6px 0; font-size:9pt; color:#555; line-height:1.6;">
+    <strong style="color:#333;">Методология учёта.</strong>
+    Документ отражает реальные доходы и расходы семьи за указанный период.
+    Переводы между собственными счетами семьи (с карты на карту, пополнение накопительных счетов)
+    <strong>не учитываются как доход или расход</strong> во избежание двойного счёта.
+    Раздел «Переводы на накопления» показывает <strong>нетто-движение</strong> на накопительных счетах
+    (пополнения минус изъятия за период).
+  </div>
+</div>
+
+<div class="header" style="print-only:none;">
   <div class="header-eye">Финансы семьи</div>
   <div class="header-title">Паспорт месяца</div>
 </div>
@@ -306,6 +351,8 @@ body {
     </div>
   </div>
   <div style="padding:0 16px 4px;font-size:10px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:0.4px;">Флаги месяца</div>
+  <!-- Флаги для печати (показывает только активные) -->
+  <div class="flags-print" style="display:none; padding:0 16px 14px; font-size:11pt; color:#333;" id="flags-print"></div>
   <div class="flags-wrap" id="flags">
     <span class="flag-chip" data-flag="ok">✅ Всё в норме</span>
     <span class="flag-chip" data-flag="unusual">⚠️ Нетипичный расход</span>
@@ -321,8 +368,8 @@ body {
 </div>
 
 <div class="action-bar">
-  <button class="btn-save" onclick="savePassport()">💾 Сохранить паспорт</button>
-  <button class="btn-print" onclick="window.print()">🖨️</button>
+  <button class="btn-save" onclick="savePassport()">💾 Сохранить</button>
+  <button class="btn-print" onclick="exportPDF()" style="background:var(--primary);color:white;border:none;flex:1;">📄 Скачать PDF</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -602,6 +649,30 @@ window.addEventListener('DOMContentLoaded', function(){
   // Загружаем текущий месяц
   loadMonth();
 });
+
+// ── Экспорт в PDF ─────────────────────────────────────────────────
+function exportPDF() {
+  const key      = document.getElementById('selMonth').value;
+  const monthName = document.getElementById('selMonth').selectedOptions[0].text;
+
+  // Заполняем печатную шапку
+  document.getElementById('print-title').textContent = 'Финансовый паспорт — ' + monthName;
+  document.getElementById('print-month-sub').textContent = 'Период: ' + (MONTH_RANGES[key]||['',''])[0] + ' — ' + (MONTH_RANGES[key]||['',''])[1];
+  document.getElementById('print-date').textContent = new Date().toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
+
+  // Собираем активные флаги для печати
+  const activeFlags = [];
+  document.querySelectorAll('.flag-chip.active').forEach(function(c){ activeFlags.push(c.textContent.trim()); });
+  const flagsEl = document.getElementById('flags-print');
+  if (activeFlags.length) {
+    flagsEl.textContent = 'Характеристики месяца: ' + activeFlags.join(' · ');
+  } else {
+    flagsEl.textContent = '';
+  }
+
+  // Печатаем
+  window.print();
+}
 
 // ── Собрать данные паспорта из формы ─────────────────────────────
 function collectPassportData() {
