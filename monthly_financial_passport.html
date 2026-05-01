@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ежемесячный финансовый паспорт</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #F3F4F8; --card: #FFFFFF; --primary: #2563EB; --primary-dark: #1D4ED8;
+    --primary-light: #EFF6FF; --primary-mid: #BFDBFE;
+    --dark: #111827; --mid: #6B7280; --light: #D1D5DB; --border: #E5E7EB;
+    --green: #10B981; --green-bg: #ECFDF5;
+    --red: #EF4444; --red-bg: #FEF2F2;
+    --yellow: #F59E0B; --yellow-bg: #FFFBEB;
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.06), 0 2px 12px rgba(0,0,0,0.04);
+    --r: 18px; --r-sm: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--dark); font-size: 14px; }
+
+  .header { background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 60%, #3B82F6 100%); color: white; padding: 36px 36px 32px; border-radius: 0 0 28px 28px; }
+  .header h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .header p { opacity: 0.75; font-size: 13px; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  /* Month selector */
+  .month-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .month-btn {
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--mid); transition: all 0.15s;
+  }
+  .month-btn:hover, .month-btn.active {
+    background: var(--primary); border-color: var(--primary); color: white;
+  }
+  .month-btn.filled { background: var(--green-bg); border-color: #A7F3D0; color: var(--green); }
+  .month-btn.filled:hover, .month-btn.filled.active { background: var(--green); border-color: var(--green); color: white; }
+
+  /* Card */
+  .card { background: var(--card); border-radius: var(--r); padding: 22px 24px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+  .card h2 { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mid); margin-bottom: 10px; margin-top: 16px; }
+
+  /* Form fields */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .field-row.single { grid-template-columns: 1fr; }
+  .field-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; font-weight: 600; color: var(--mid); text-transform: uppercase; letter-spacing: 0.4px; }
+  .field input, .field select, .field textarea {
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    padding: 9px 12px; font-size: 13px; font-family: inherit;
+    color: var(--dark); background: var(--bg); outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+  }
+  .field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+  .field .hint { font-size: 10.5px; color: var(--light); margin-top: 3px; }
+
+  /* Amount input */
+  .amount-wrap { position: relative; }
+  .amount-wrap input { padding-left: 28px; font-weight: 700; font-size: 14px; }
+  .amount-wrap::before { content: '₽'; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--primary); font-weight: 700; font-size: 13px; pointer-events: none; }
+
+  /* One-time items list */
+  .items-list { display: flex; flex-direction: column; gap: 8px; }
+  .item-row { display: grid; grid-template-columns: 1fr 130px 40px; gap: 8px; align-items: center; }
+  .item-row input { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; font-size: 12.5px; font-family: inherit; color: var(--dark); background: var(--bg); outline: none; }
+  .item-row input:focus { border-color: var(--primary); background: white; }
+  .item-row .del-btn { background: var(--red-bg); border: 1px solid #FECACA; border-radius: 8px; color: var(--red); font-size: 16px; cursor: pointer; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+  .add-btn { background: var(--primary-light); border: 1px dashed var(--primary-mid); border-radius: var(--r-sm); padding: 9px 16px; font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; width: 100%; margin-top: 8px; }
+  .add-btn:hover { background: var(--primary); color: white; }
+
+  /* Status flag */
+  .flags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .flag-btn {
+    border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); background: var(--card); color: var(--mid);
+    transition: all 0.15s;
+  }
+  .flag-btn.selected-green { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .flag-btn.selected-yellow { background: var(--yellow-bg); border-color: var(--yellow); color: #92400E; }
+  .flag-btn.selected-red { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+
+  /* Summary panel */
+  .summary-panel { background: var(--primary-light); border: 1px solid var(--primary-mid); border-radius: var(--r-sm); padding: 18px 20px; margin-top: 4px; }
+  .sum-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+  .sum-row.total { font-weight: 800; font-size: 15px; border-top: 1px solid var(--primary-mid); margin-top: 8px; padding-top: 10px; }
+  .sum-row .neg { color: var(--red); } .sum-row .pos { color: var(--green); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn { border-radius: 12px; padding: 11px 20px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; }
+  .btn.primary { background: var(--primary); color: white; }
+  .btn.primary:hover { background: var(--primary-dark); }
+  .btn.secondary { background: var(--bg); border: 1px solid var(--border); color: var(--dark); }
+  .btn.danger { background: var(--red-bg); border: 1px solid #FECACA; color: var(--red); }
+
+  /* History list */
+  .history-grid { display: flex; flex-direction: column; gap: 10px; }
+  .hist-card {
+    background: var(--bg); border-radius: var(--r-sm); padding: 14px 16px;
+    border: 1px solid var(--border); display: flex; gap: 14px; align-items: flex-start; cursor: pointer;
+  }
+  .hist-card:hover { border-color: var(--primary); }
+  .hist-icon { font-size: 24px; flex-shrink: 0; }
+  .hist-body { flex: 1; }
+  .hist-month { font-size: 14px; font-weight: 700; color: var(--dark); }
+  .hist-summary { font-size: 12px; color: var(--mid); margin-top: 2px; }
+  .hist-bal { font-size: 14px; font-weight: 800; }
+  .hist-flag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+  .hist-flag.ok { background: var(--green-bg); color: var(--green); }
+  .hist-flag.warn { background: var(--yellow-bg); color: #92400E; }
+  .hist-flag.note { background: var(--primary-light); color: var(--primary); }
+
+  /* Dashboard */
+  .dash-grid { display: flex; flex-direction: column; gap: 14px; }
+  .dash-month-card {
+    background: var(--card); border-radius: var(--r); border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .dmc-header {
+    display: flex; align-items: center; gap: 10px; padding: 14px 20px 12px;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .dmc-month { font-size: 15px; font-weight: 800; color: var(--dark); flex: 1; }
+  .dmc-badge {
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+  }
+  .dmc-badge.pos { background: var(--green-bg); color: var(--green); border: 1px solid #A7F3D0; }
+  .dmc-badge.neg { background: var(--red-bg); color: var(--red); border: 1px solid #FECACA; }
+  .dmc-badge.sav { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-mid); }
+  .dmc-nums {
+    display: grid; grid-template-columns: repeat(4, 1fr); padding: 16px 20px; gap: 8px;
+  }
+  .dmc-num { display: flex; flex-direction: column; gap: 4px; }
+  .dmc-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mid); }
+  .dmc-val { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+  .dmc-val.green { color: var(--green); }
+  .dmc-val.red { color: var(--red); }
+  .dmc-val.blue { color: var(--primary); }
+  .dmc-val.dark { color: var(--dark); }
+  .dmc-cats { display: flex; gap: 6px; padding: 0 20px 14px; flex-wrap: wrap; }
+  .dmc-cat { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); color: var(--mid); }
+  .dmc-note { font-size: 12px; color: var(--mid); padding: 10px 20px 14px; border-top: 1px solid var(--border); font-style: italic; line-height: 1.5; }
+  .dmc-empty { text-align: center; padding: 14px 20px; font-size: 12px; color: var(--light); border-top: 1px dashed var(--border); }
+
+  .chart-wrap { position: relative; height: 280px; margin: 4px 0 16px; }
+
+  /* Summary table */
+  .sumtable-wrap { overflow-x: auto; margin-top: 4px; }
+  table.sumtable { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+  table.sumtable thead th { background: var(--primary); color: white; padding: 9px 12px; text-align: right; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+  table.sumtable thead th:first-child { text-align: left; }
+  table.sumtable tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: right; }
+  table.sumtable tbody td:first-child { text-align: left; font-weight: 600; color: var(--dark); }
+  table.sumtable tbody tr:nth-child(even) td { background: var(--bg); }
+  table.sumtable tfoot td { background: var(--primary-light); font-weight: 800; padding: 9px 12px; text-align: right; font-size: 12.5px; border-top: 2px solid var(--primary-mid); color: var(--primary-dark); }
+  table.sumtable tfoot td:first-child { text-align: left; }
+
+  /* Print */
+  @media print {
+    .month-nav, .btn-row, .tab-bar, #historyTab, #formTab, #exportTab { display: none !important; }
+    #dashboardTab { display: block !important; }
+    .header { border-radius: 0; }
+    .card { break-inside: avoid; box-shadow: none; }
+    .dash-month-card { break-inside: avoid; }
+  }
+
+  /* Tab bar */
+  .tab-bar { display: flex; gap: 8px; margin-bottom: 20px; background: var(--card); border-radius: var(--r-sm); padding: 5px; border: 1px solid var(--border); }
+  .tab { flex: 1; text-align: center; padding: 9px; border-radius: 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--mid); }
+  .tab.active { background: var(--primary); color: white; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .no-data { text-align: center; padding: 40px 20px; color: var(--light); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📋 Финансовый паспорт семьи</h1>
+  <p>Ежемесячная фиксация доходов, расходов и пояснений · Для стипендиального фонда</p>
+</div>
+
+<div class="container">
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('form')">📝 Месяц</div>
+    <div class="tab" onclick="switchTab('dashboard')">📊 Дашборд</div>
+    <div class="tab" onclick="switchTab('history')">📚 История</div>
+    <div class="tab" onclick="switchTab('export')">📤 Экспорт</div>
+  </div>
+
+  <!-- FORM TAB -->
+  <div id="formTab" class="tab-content active">
+
+    <!-- Month selector -->
+    <div id="monthNav" class="month-nav"></div>
+
+    <!-- Header info -->
+    <div class="card">
+      <h2>📅 Паспорт месяца</h2>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Месяц</label>
+          <select id="selMonth">
+            <option value="Апрель 2026">Апрель 2026</option>
+            <option value="Май 2026">Май 2026</option>
+            <option value="Июнь 2026">Июнь 2026</option>
+            <option value="Июль 2026">Июль 2026</option>
+            <option value="Август 2026">Август 2026</option>
+            <option value="Сентябрь 2026">Сентябрь 2026</option>
+            <option value="Октябрь 2026">Октябрь 2026</option>
+            <option value="Ноябрь 2026">Ноябрь 2026</option>
+            <option value="Декабрь 2026">Декабрь 2026</option>
+            <option value="Январь 2027">Январь 2027</option>
+            <option value="Февраль 2027">Февраль 2027</option>
+            <option value="Март 2027">Март 2027</option>
+            <option value="Апрель 2027">Апрель 2027</option>
+            <option value="Май 2027">Май 2027</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Статус месяца</label>
+          <select id="selStatus">
+            <option value="normal">✅ Обычный</option>
+            <option value="irregular">⚠️ Есть нетипичные расходы</option>
+            <option value="critical">🔴 Критический (объяснение ниже)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Дата заполнения</label>
+          <input type="date" id="fillDate">
+        </div>
+      </div>
+    </div>
+
+    <!-- Load from tracker button -->
+    <div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1.5px solid #BFDBFE;border-radius:var(--r);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
+      <div style="font-size:28px;">📥</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:var(--primary-dark);margin-bottom:2px;">Загрузить данные из трекера расходов</div>
+        <div style="font-size:11.5px;color:var(--mid);line-height:1.5;">Автоматически заполнит доходы, расходы по категориям и разовые траты из expense_tracker_form.html</div>
+      </div>
+      <button onclick="loadFromTracker()" style="background:var(--primary);color:white;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Загрузить →</button>
+    </div>
+
+    <!-- Income -->
+    <div class="card">
+      <h2>💰 Доходы</h2>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Аня (самозанятая)</label>
+          <div class="amount-wrap"><input type="number" id="incAnya" placeholder="0" oninput="calcSummary()"></div>
+          <span class="hint">Фактически зачислено (после чека СЗ)</span>
+        </div>
+        <div class="field">
+          <label>Виталий — гарантированный</label>
+          <div class="amount-wrap"><input type="number" id="incVGuar" placeholder="150000" value="150000" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Виталий — проектный ИП</label>
+          <div class="amount-wrap"><input type="number" id="incVProj" placeholder="0" oninput="calcSummary()"></div>
+          <span class="hint">Переводы с ИП на личный счёт</span>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Прочие поступления (кэшбэк, возвраты и т.п.)</label>
+          <div class="amount-wrap"><input type="number" id="incOther" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Примечание к доходам</label>
+          <input type="text" id="incNote" placeholder="Например: проект Х завершён, оплата 80К">
+        </div>
+      </div>
+      <div id="projectIncomeBlock" style="display:none; margin-top:12px; background:var(--yellow-bg); border:1px solid #FDE68A; border-radius:var(--r-sm); padding:14px 16px;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#92400E; margin-bottom:10px;">💼 Нерегулярное / проектное поступление</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Сумма поступления</label>
+            <div class="amount-wrap"><input type="number" id="incProject" placeholder="0" oninput="calcSummary()"></div>
+          </div>
+          <div class="field">
+            <label>Куда направили</label>
+            <input type="text" id="incProjectDest" placeholder="Напр.: НС «На учёбу» — 80К, остаток на НС «Отпуск»">
+          </div>
+        </div>
+        <div class="field" style="margin-top:8px;">
+          <label>Внутренняя пометка (для себя, не для фонда)</label>
+          <input type="text" id="incProjectNote" placeholder="Контекст: откуда, за что, кто перевёл — для памяти через год">
+        </div>
+        <div style="font-size:11px; color:#92400E; margin-top:8px; line-height:1.5;">
+          ℹ️ Это поле только для внутреннего учёта. При подготовке заявки в фонд — формулировать отдельно.
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button type="button" class="add-btn" onclick="toggleProjectIncome()" id="projToggleBtn">+ Было нерегулярное поступление</button>
+      </div>
+    </div>
+
+    <!-- Regular expenses -->
+    <div class="card">
+      <h2>🏠 Регулярные расходы</h2>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Продукты</label>
+          <div class="amount-wrap"><input type="number" id="expFood" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>ЖКХ + интернет</label>
+          <div class="amount-wrap"><input type="number" id="expUtil" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Транспорт + бензин</label>
+          <div class="amount-wrap"><input type="number" id="expTransp" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+      </div>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Здоровье + психолог</label>
+          <div class="amount-wrap"><input type="number" id="expHealth" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Кафе + питание вне дома</label>
+          <div class="amount-wrap"><input type="number" id="expCafe" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Подписки + мелкое</label>
+          <div class="amount-wrap"><input type="number" id="expSubs" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Education -->
+    <div class="card">
+      <h2>🎓 Образование</h2>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Школа Арсения</label>
+          <div class="amount-wrap"><input type="number" id="expSchA" placeholder="67000" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Кружки / доп. занятия Арс.</label>
+          <div class="amount-wrap"><input type="number" id="expCircA" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Велоспорт</label>
+          <div class="amount-wrap"><input type="number" id="expBike" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Школа Матвея + кружки</label>
+          <div class="amount-wrap"><input type="number" id="expSchM" placeholder="36200" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Примечание к образованию</label>
+          <input type="text" id="eduNote" placeholder="Например: заплатили за август первый+последний">
+        </div>
+      </div>
+    </div>
+
+    <!-- One-time items -->
+    <div class="card">
+      <h2>⚡ Разовые и нетипичные расходы</h2>
+      <p style="font-size:12px; color:var(--mid); margin-bottom:14px;">Всё, что отличается от обычного месяца — техника, ремонт, поездки, медицина, одежда крупная и т.п. Именно эти строки банк/фонд будет читать при анализе аномалий.</p>
+      <div class="items-list" id="oneTimeList">
+        <div class="item-row">
+          <input type="text" placeholder="Что: например «Телефон Samsung»" class="item-name">
+          <input type="number" placeholder="Сумма ₽" class="item-amount" oninput="calcSummary()">
+          <button class="del-btn" onclick="delItem(this)">×</button>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addItem()">+ Добавить строку</button>
+      <div id="oneTimeTotalRow" style="margin-top:10px; font-size:12px; color:var(--mid); text-align:right; display:none;">
+        Итого разовые: <strong id="oneTimeTotal" style="color:var(--dark)">0₽</strong>
+      </div>
+    </div>
+
+    <!-- Investments -->
+    <div class="card">
+      <h2>📈 Инвестиции и переводы на накопления</h2>
+      <div class="field-row triple">
+        <div class="field">
+          <label>Купили акций / фондов</label>
+          <div class="amount-wrap"><input type="number" id="invStocks" placeholder="0" oninput="calcSummary()"></div>
+          <span class="hint">Через брокерский счёт — НЕ расход семьи</span>
+        </div>
+        <div class="field">
+          <label>Пополнили НС «На учёбу»</label>
+          <div class="amount-wrap"><input type="number" id="invEdu" placeholder="0" oninput="calcSummary()"></div>
+        </div>
+        <div class="field">
+          <label>Пополнили НС «Фонд/Резерв»</label>
+          <div class="amount-wrap"><input type="number" id="invFund" placeholder="50000" oninput="calcSummary()"></div>
+          <span class="hint">Целевое накопление для фонда (50К/мес)</span>
+        </div>
+      </div>
+      <div class="field-row single">
+        <div class="field">
+          <label>Пояснение по инвестициям / переводам</label>
+          <input type="text" id="invNote" placeholder="Например: купили MOEX ETF на 30К — пополнение брокерского счёта из ИП-дохода">
+        </div>
+      </div>
+    </div>
+
+    <!-- Month comment -->
+    <div class="card">
+      <h2>📝 Пояснение к месяцу (для фонда / банка)</h2>
+      <p style="font-size:12px; color:var(--mid); margin-bottom:12px;">Этот текст — ваш «нарратив». Напишите 2–4 предложения о том, что было нетипичным в этом месяце, почему какой-то расход выше или ниже обычного. Через год это станет готовым сопроводительным письмом.</p>
+      <div class="field-row single">
+        <div class="field">
+          <label>Общий комментарий к месяцу</label>
+          <textarea id="monthComment" placeholder="Например: В этом месяце плановый расход на велоспорт выше обычного — финальные соревнования сезона (взнос 12К). В остальном расходы типичные. Доход Виталия включает завершённый проект Х, оплата получена разово."></textarea>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Отметить флаги месяца</label>
+          <div class="flags" id="flagsGroup">
+            <div class="flag-btn" onclick="toggleFlag(this,'ok')">✅ Всё в норме</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">⚠️ Нетипичный расход</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">📅 Разовый платёж школы</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">💻 Покупка техники</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">🏥 Крупная медицина</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">✈️ Поездка / отпуск</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'ok')">📈 Инвестиции</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'ok')">💰 Крупный ИП-проект</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">💼 Нерегулярное поступление</div>
+            <div class="flag-btn" onclick="toggleFlag(this,'warn')">📉 Снижение дохода</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account balances -->
+    <div class="card">
+      <h2>🏦 Остатки на счетах на конец месяца</h2>
+      <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--mid); margin-bottom:8px;">Аня</div>
+      <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+        <div class="field">
+          <label>Аня ЗП (Тинькофф)</label>
+          <div class="amount-wrap"><input type="number" id="balAnya" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+        <div class="field">
+          <label>Общая карта</label>
+          <div class="amount-wrap"><input type="number" id="balCommon" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+        <div class="field">
+          <label>НС «На учёбу»</label>
+          <div class="amount-wrap"><input type="number" id="balEdu" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+        <div class="field">
+          <label>НС «Отпуск/инвест»</label>
+          <div class="amount-wrap"><input type="number" id="balVac" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+        <div class="field">
+          <label>Аня Сбер</label>
+          <div class="amount-wrap"><input type="number" id="balSber" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+      </div>
+      <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--mid); margin-top:12px; margin-bottom:8px;">Виталий</div>
+      <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr;">
+        <div class="field">
+          <label>Виталий Тинькофф</label>
+          <div class="amount-wrap"><input type="number" id="balVitTink" placeholder="0" oninput="updateTotalLiquid()"></div>
+          <span class="hint">Личный, с него докидывает на общую</span>
+        </div>
+        <div class="field">
+          <label>Виталий Сбербанк</label>
+          <div class="amount-wrap"><input type="number" id="balVitSber" placeholder="0" oninput="updateTotalLiquid()"></div>
+        </div>
+        <div class="field">
+          <label>Виталий ИП счёт</label>
+          <div class="amount-wrap"><input type="number" id="balVitIp" placeholder="0" oninput="updateTotalLiquid()"></div>
+          <span class="hint">Рабочий</span>
+        </div>
+      </div>
+      <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr; margin-top:10px;">
+        <div class="field" style="border:1px solid #BFDBFE; border-radius:10px; padding:10px; background:#EFF6FF;">
+          <label style="color:#1D4ED8; font-weight:700;">💎 Инвестсчёт (брокерский)</label>
+          <div class="amount-wrap"><input type="number" id="balInvest" placeholder="577000" oninput="updateTotalLiquid()"></div>
+          <span class="hint" style="color:#3B82F6;">Рыночная стоимость портфеля (акции + облигации)</span>
+        </div>
+        <div class="field" style="border:1px solid #D1FAE5; border-radius:10px; padding:10px; background:#ECFDF5;">
+          <label style="color:#065F46; font-weight:700;">🏦 Итого ликвидных активов</label>
+          <div class="amount-wrap" style="font-size:16px; font-weight:800; color:#10B981;" id="totalLiquid">—</div>
+          <span class="hint" style="color:#10B981;">Все счета + инвестсчёт</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card">
+      <h2>📊 Итоги месяца</h2>
+      <div class="summary-panel" id="summaryPanel">
+        <div class="sum-row"><span>Совокупный доход</span><span id="sumInc" class="pos">—</span></div>
+        <div class="sum-row"><span>Регулярные расходы</span><span id="sumRegExp" class="neg">—</span></div>
+        <div class="sum-row"><span>Разовые расходы</span><span id="sumOneTime" style="color:var(--yellow)">—</span></div>
+        <div class="sum-row"><span>Переводы на накопления / инвестиции</span><span id="sumSav" style="color:var(--purple, #8B5CF6)">—</span></div>
+        <div class="sum-row total"><span>Баланс месяца</span><span id="sumBalance">—</span></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn primary" onclick="saveMonth()">💾 Сохранить паспорт</button>
+      <button class="btn secondary" onclick="window.print()">🖨️ Распечатать</button>
+      <button class="btn secondary" onclick="clearForm()">🗑️ Очистить форму</button>
+    </div>
+
+  </div><!-- /formTab -->
+
+  <!-- HISTORY TAB -->
+  <!-- DASHBOARD TAB -->
+  <div id="dashboardTab" class="tab-content">
+
+    <!-- Empty state -->
+    <div id="dashEmpty" class="card" style="display:none">
+      <div class="no-data">📋 Сохраните первый паспорт — он появится здесь как карточка месяца</div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card" id="dashChartCard" style="display:none">
+      <h2>📈 Доходы и расходы по месяцам</h2>
+      <div class="chart-wrap">
+        <canvas id="dashChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Month cards -->
+    <div class="dash-grid" id="dashMonths"></div>
+
+    <!-- Summary table -->
+    <div class="card" id="dashSummaryCard" style="display:none">
+      <h2>📋 Сводная таблица · Для фонда</h2>
+      <div class="sumtable-wrap" id="dashSummaryTable"></div>
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button class="btn primary" onclick="window.print()">🖨️ Распечатать таблицу</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="historyTab" class="tab-content">
+    <div class="card">
+      <h2>📚 Сохранённые паспорта</h2>
+      <div class="history-grid" id="historyList">
+        <div class="no-data">Пока нет сохранённых паспортов.<br>Заполните первый месяц!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT TAB -->
+  <div id="exportTab" class="tab-content">
+    <div class="card">
+      <h2>📤 Экспорт данных</h2>
+      <p style="font-size:13px; color:var(--mid); margin-bottom:16px; line-height:1.6;">
+        Экспортируйте все паспорта в CSV для приложения к заявке в фонд, или сохраните JSON-резервную копию.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" onclick="exportCSV()">📊 Скачать CSV (для фонда)</button>
+        <button class="btn secondary" onclick="exportJSON()">💾 JSON резервная копия</button>
+        <button class="btn secondary" onclick="document.getElementById('importFile').click()">📥 Восстановить из JSON</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
+    </div>
+
+    <div class="card" id="csvPreview" style="display:none">
+      <h2>📋 Сводная таблица по всем месяцам</h2>
+      <div id="csvTable" style="overflow-x:auto; font-size:12px;"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+const STORAGE_KEY = 'passport_v1';
+let passports = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let currentFlags = [];
+
+// Init
+window.onload = () => {
+  const today = new Date();
+  document.getElementById('fillDate').valueAsDate = today;
+  renderMonthNav();
+  renderHistory();
+  calcSummary();
+};
+
+function fmt(n) { return Math.round(n).toLocaleString('ru') + '₽'; }
+function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+function toggleProjectIncome() {
+  const block = document.getElementById('projectIncomeBlock');
+  const btn = document.getElementById('projToggleBtn');
+  const visible = block.style.display !== 'none';
+  block.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '+ Было нерегулярное поступление' : '− Скрыть блок';
+}
+
+// ─── LOAD FROM TRACKER ───────────────────────────────────────────────────────
+
+const MONTH_DATE_RANGES = {
+  'Апрель 2026':['2026-04-01','2026-04-30'],
+  'Май 2026':['2026-05-01','2026-05-31'],'Июнь 2026':['2026-06-01','2026-06-30'],
+  'Июль 2026':['2026-07-01','2026-07-31'],'Август 2026':['2026-08-01','2026-08-31'],
+  'Сентябрь 2026':['2026-09-01','2026-09-30'],'Октябрь 2026':['2026-10-01','2026-10-31'],
+  'Ноябрь 2026':['2026-11-01','2026-11-30'],'Декабрь 2026':['2026-12-01','2026-12-31'],
+  'Январь 2027':['2027-01-01','2027-01-31'],'Февраль 2027':['2027-02-01','2027-02-28'],
+  'Март 2027':['2027-03-01','2027-03-31'],'Апрель 2027':['2027-04-01','2027-04-30'],
+  'Май 2027':['2027-05-01','2027-05-31']
+};
+
+const ONETIME_CAT_NAMES = {
+  shopping:'Покупки',gifts:'Подарки',leisure:'Досуг / развлечения',
+  vacation:'Отпуск / поездки',taxes:'Налоги и штрафы',pocket:'Карманные деньги',
+  other_e:'Прочее',school:'Школа — прочее'
+};
+
+// ── GAS / JSONP ───────────────────────────────────────────────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFZ72n358MZDMgAQ_ut8GHZFwQzDbckfAkk452NNFAzFwl8NbxeRYq6urBsF6nWwxr/exec';
+
+function jsonpRequest(url, timeoutMs) {
+  timeoutMs = timeoutMs || 20000;
+  return new Promise(function(resolve, reject) {
+    const cbName = 'mpJSONP_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let done = false;
+    const timer = setTimeout(function() { cleanup(); reject(new Error('Таймаут')); }, timeoutMs);
+    function cleanup() {
+      if (done) return; done = true;
+      clearTimeout(timer); delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(data) { cleanup(); resolve(data); };
+    script.onerror = function() { cleanup(); reject(new Error('Ошибка загрузки скрипта')); };
+    const sep = url.indexOf('?') === -1 ? '?' : '&';
+    script.src = url + sep + 'callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+function loadFromTracker() {
+  const month = document.getElementById('selMonth').value;
+  const range = MONTH_DATE_RANGES[month];
+  if (!range) { alert('Месяц не найден'); return; }
+  const [d0, d1] = range;
+
+  const btn = document.querySelector('[onclick="loadFromTracker()"]');
+  if (btn) { btn.textContent = '⏳ Загружаю…'; btn.disabled = true; }
+
+  jsonpRequest(GAS_URL)
+    .then(function(all) {
+      if (btn) { btn.textContent = 'Загрузить →'; btn.disabled = false; }
+      if (!Array.isArray(all)) { alert('Неверный формат данных из таблицы'); return; }
+      const entries = all.filter(function(e) { return e.date >= d0 && e.date <= d1; });
+      if (!entries.length) { alert(`В Google Таблице нет записей за ${month}.\nСначала внеси расходы и отправь в таблицу.`); return; }
+      processEntries(entries, month);
+    })
+    .catch(function(err) {
+      if (btn) { btn.textContent = 'Загрузить →'; btn.disabled = false; }
+      alert('⚠️ Не удалось загрузить из Google Таблицы:\n' + err.message + '\n\nПроверь что GAS-скрипт обновлён и доступен.');
+    });
+
+}
+
+function processEntries(entries, month) {
+  // Aggregation
+  let incAnya=0, incVProj=0, incOther=0;
+  let expFood=0, expUtil=0, expTransp=0, expHealth=0, expCafe=0, expSubs=0;
+  let expSchA=0, expSchM=0, expCircA=0, expBike=0;
+  const oneTimeByCat = {};
+
+  entries.forEach(function(e) {
+    const amt = parseFloat(e.amount) || 0;
+    const catId = e.category ? (e.category.id || e.category) : '';
+    const scId  = e.subcat   ? (e.subcat.id   || e.subcat)   : '';
+    if (e.type === 'income') {
+      if (catId === 'sal_a') incAnya += amt;
+      else if (catId === 'sal_v' || catId === 'proj') incVProj += amt;
+      else incOther += amt;
+    } else if (e.type === 'expense') {
+      switch(catId) {
+        case 'food':       expFood   += amt; break;
+        case 'utilities':
+        case 'internet':   expUtil   += amt; break;
+        case 'transport':  expTransp += amt; break;
+        case 'health':     expHealth += amt; break;
+        case 'cafe':       expCafe   += amt; break;
+        case 'subs':       expSubs   += amt; break;
+        case 'cycling':    expBike   += amt; break;
+        case 'circles':    expCircA  += amt; break;
+        case 'school':
+          if (scId === 'arseny_pay') expSchA += amt;
+          else if (scId === 'matvey_pay') expSchM += amt;
+          else { oneTimeByCat['school'] = (oneTimeByCat['school']||0) + amt; }
+          break;
+        default:
+          if (catId) oneTimeByCat[catId] = (oneTimeByCat[catId]||0) + amt;
+      }
+    }
+  });
+
+  // Fill income fields
+  if (incAnya)  document.getElementById('incAnya').value  = Math.round(incAnya);
+  if (incVProj) document.getElementById('incVProj').value = Math.round(incVProj);
+  if (incOther) document.getElementById('incOther').value = Math.round(incOther);
+
+  // Fill expense fields
+  function setExp(id, val) { if (val) document.getElementById(id).value = Math.round(val); }
+  setExp('expFood',expFood); setExp('expUtil',expUtil);
+  setExp('expTransp',expTransp); setExp('expHealth',expHealth);
+  setExp('expCafe',expCafe); setExp('expSubs',expSubs);
+  setExp('expBike',expBike); setExp('expCircA',expCircA);
+  setExp('expSchA',expSchA); setExp('expSchM',expSchM);
+
+  // Fill one-time items
+  const list = document.getElementById('oneTimeList');
+  list.innerHTML = '';
+  Object.entries(oneTimeByCat).forEach(function([cat, total]) {
+    if (!total) return;
+    const name = ONETIME_CAT_NAMES[cat] || cat;
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `<input type="text" class="item-name" value="${name}">
+      <input type="number" class="item-amount" value="${Math.round(total)}" oninput="calcSummary()">
+      <button class="del-btn" onclick="delItem(this)">×</button>`;
+    list.appendChild(div);
+  });
+  if (!list.children.length) {
+    const div = document.createElement('div'); div.className='item-row';
+    div.innerHTML=`<input type="text" placeholder="Что: например «Куртка зимняя»" class="item-name"><input type="number" placeholder="Сумма ₽" class="item-amount" oninput="calcSummary()"><button class="del-btn" onclick="delItem(this)">×</button>`;
+    list.appendChild(div);
+  }
+
+  calcSummary();
+  alert(`✅ Загружено ${entries.length} записей за ${month} из Google Таблицы.\n\n• Доход Виталий гарантированный (150К) — заполни вручную\n• Остатки на счетах — заполни вручную\n• Проверь и скорректируй цифры при необходимости`);
+}
+
+function updateTotalLiquid() {
+  const total = num('balAnya') + num('balCommon') + num('balEdu') + num('balVac') + num('balSber')
+    + num('balVitTink') + num('balVitSber') + num('balVitIp') + num('balInvest');
+  const el = document.getElementById('totalLiquid');
+  if (el) {
+    el.textContent = total > 0 ? fmt(total) + ' ₽' : '—';
+  }
+}
+
+function calcSummary() {
+  const inc = num('incAnya') + num('incVGuar') + num('incVProj') + num('incOther');
+  const regExp = num('expFood') + num('expUtil') + num('expTransp') + num('expHealth')
+    + num('expCafe') + num('expSubs') + num('expSchA') + num('expCircA')
+    + num('expBike') + num('expSchM');
+  const oneTimeTotal = getOneTimeTotal();
+  const sav = num('invStocks') + num('invEdu') + num('invFund');
+  const balance = inc - regExp - oneTimeTotal;
+
+  document.getElementById('sumInc').textContent = fmt(inc);
+  document.getElementById('sumRegExp').textContent = '−' + fmt(regExp);
+  document.getElementById('sumOneTime').textContent = oneTimeTotal > 0 ? '−' + fmt(oneTimeTotal) : '—';
+  document.getElementById('sumSav').textContent = sav > 0 ? '→ ' + fmt(sav) : '—';
+
+  const balEl = document.getElementById('sumBalance');
+  balEl.textContent = (balance >= 0 ? '+' : '') + fmt(balance);
+  balEl.className = balance >= 0 ? 'pos' : 'neg';
+
+  // One-time total display
+  const otRow = document.getElementById('oneTimeTotalRow');
+  if (oneTimeTotal > 0) {
+    otRow.style.display = 'block';
+    document.getElementById('oneTimeTotal').textContent = fmt(oneTimeTotal);
+  } else {
+    otRow.style.display = 'none';
+  }
+}
+
+function getOneTimeTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-amount').forEach(el => { total += parseFloat(el.value) || 0; });
+  return total;
+}
+
+function getOneTimeItems() {
+  const items = [];
+  const rows = document.querySelectorAll('#oneTimeList .item-row');
+  rows.forEach(row => {
+    const name = row.querySelector('.item-name').value.trim();
+    const amount = parseFloat(row.querySelector('.item-amount').value) || 0;
+    if (name || amount) items.push({ name, amount });
+  });
+  return items;
+}
+
+function addItem() {
+  const list = document.getElementById('oneTimeList');
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML = `
+    <input type="text" placeholder="Что: например «Куртка зимняя»" class="item-name">
+    <input type="number" placeholder="Сумма ₽" class="item-amount" oninput="calcSummary()">
+    <button class="del-btn" onclick="delItem(this)">×</button>`;
+  list.appendChild(div);
+}
+
+function delItem(btn) {
+  btn.parentElement.remove();
+  calcSummary();
+}
+
+function toggleFlag(el, type) {
+  const classMap = { ok: 'selected-green', warn: 'selected-yellow', red: 'selected-red' };
+  const cls = classMap[type] || 'selected-green';
+  if (el.classList.contains(cls)) {
+    el.classList.remove(cls);
+    currentFlags = currentFlags.filter(f => f !== el.textContent.trim());
+  } else {
+    el.classList.add(cls);
+    currentFlags.push(el.textContent.trim());
+  }
+}
+
+function saveMonth() {
+  const month = document.getElementById('selMonth').value;
+  const data = {
+    month,
+    fillDate: document.getElementById('fillDate').value,
+    status: document.getElementById('selStatus').value,
+    flags: [...currentFlags],
+    income: {
+      anya: num('incAnya'), vGuar: num('incVGuar'), vProj: num('incVProj'), other: num('incOther'),
+      note: document.getElementById('incNote').value,
+      project: num('incProject'),
+      projectDest: document.getElementById('incProjectDest').value,
+      projectNote: document.getElementById('incProjectNote').value
+    },
+    expenses: {
+      food: num('expFood'), util: num('expUtil'), transp: num('expTransp'),
+      health: num('expHealth'), cafe: num('expCafe'), subs: num('expSubs'),
+      schA: num('expSchA'), circA: num('expCircA'), bike: num('expBike'), schM: num('expSchM'),
+      eduNote: document.getElementById('eduNote').value
+    },
+    oneTime: getOneTimeItems(),
+    investments: {
+      stocks: num('invStocks'), edu: num('invEdu'), fund: num('invFund'),
+      note: document.getElementById('invNote').value
+    },
+    balances: {
+      anya: num('balAnya'), common: num('balCommon'), edu: num('balEdu'),
+      vac: num('balVac'), sber: num('balSber'), invest: num('balInvest'),
+      vitTink: num('balVitTink'), vitSber: num('balVitSber'), vitIp: num('balVitIp')
+    },
+    comment: document.getElementById('monthComment').value,
+    savedAt: new Date().toISOString()
+  };
+  passports[month] = data;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(passports));
+  renderMonthNav();
+  renderHistory();
+  alert(`✅ Паспорт за ${month} сохранён!`);
+}
+
+function clearForm() {
+  if (!confirm('Очистить форму (сохранённые данные не удаляются)?')) return;
+  document.querySelectorAll('input[type=number]').forEach(el => el.value = '');
+  document.querySelectorAll('textarea, input[type=text]').forEach(el => el.value = '');
+  document.querySelectorAll('.flag-btn').forEach(el => el.className = 'flag-btn');
+  currentFlags = [];
+  calcSummary();
+}
+
+function loadMonth(month) {
+  const d = passports[month];
+  if (!d) return;
+  document.getElementById('selMonth').value = month;
+  document.getElementById('fillDate').value = d.fillDate || '';
+  document.getElementById('selStatus').value = d.status || 'normal';
+
+  // Income
+  document.getElementById('incAnya').value = d.income?.anya || '';
+  document.getElementById('incVGuar').value = d.income?.vGuar || '';
+  document.getElementById('incVProj').value = d.income?.vProj || '';
+  document.getElementById('incOther').value = d.income?.other || '';
+  document.getElementById('incNote').value = d.income?.note || '';
+  const proj = d.income?.project || 0;
+  document.getElementById('incProject').value = proj || '';
+  document.getElementById('incProjectDest').value = d.income?.projectDest || '';
+  document.getElementById('incProjectNote').value = d.income?.projectNote || '';
+  if (proj > 0) {
+    document.getElementById('projectIncomeBlock').style.display = 'block';
+    document.getElementById('projToggleBtn').textContent = '− Скрыть блок';
+  }
+
+  // Expenses
+  const e = d.expenses || {};
+  ['food','util','transp','health','cafe','subs','schA','circA','bike','schM'].forEach(k => {
+    const el = document.getElementById('exp' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.value = e[k] || '';
+  });
+  document.getElementById('eduNote').value = e.eduNote || '';
+
+  // One-time
+  const list = document.getElementById('oneTimeList');
+  list.innerHTML = '';
+  (d.oneTime || []).forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <input type="text" placeholder="Что" class="item-name" value="${item.name || ''}">
+      <input type="number" placeholder="Сумма ₽" class="item-amount" value="${item.amount || ''}" oninput="calcSummary()">
+      <button class="del-btn" onclick="delItem(this)">×</button>`;
+    list.appendChild(div);
+  });
+  if ((d.oneTime || []).length === 0) addItem();
+
+  // Investments
+  document.getElementById('invStocks').value = d.investments?.stocks || '';
+  document.getElementById('invEdu').value = d.investments?.edu || '';
+  document.getElementById('invFund').value = d.investments?.fund || '';
+  document.getElementById('invNote').value = d.investments?.note || '';
+
+  // Balances
+  document.getElementById('balAnya').value = d.balances?.anya || '';
+  document.getElementById('balCommon').value = d.balances?.common || '';
+  document.getElementById('balEdu').value = d.balances?.edu || '';
+  document.getElementById('balVac').value = d.balances?.vac || '';
+  document.getElementById('balSber').value = d.balances?.sber || '';
+  document.getElementById('balInvest').value = d.balances?.invest || '';
+  document.getElementById('balVitTink').value = d.balances?.vitTink || '';
+  document.getElementById('balVitSber').value = d.balances?.vitSber || '';
+  document.getElementById('balVitIp').value = d.balances?.vitIp || '';
+  updateTotalLiquid();
+
+  // Comment
+  document.getElementById('monthComment').value = d.comment || '';
+
+  // Flags
+  currentFlags = d.flags || [];
+  document.querySelectorAll('.flag-btn').forEach(el => el.className = 'flag-btn');
+  // (flags restore is simplified)
+
+  calcSummary();
+  switchTab('form');
+}
+
+function renderMonthNav() {
+  const months = ['Апрель 2026','Май 2026','Июнь 2026','Июль 2026','Август 2026','Сентябрь 2026','Октябрь 2026','Ноябрь 2026','Декабрь 2026','Январь 2027','Февраль 2027','Март 2027','Апрель 2027','Май 2027'];
+  const nav = document.getElementById('monthNav');
+  nav.innerHTML = '';
+  months.forEach(m => {
+    const btn = document.createElement('div');
+    btn.className = 'month-btn' + (passports[m] ? ' filled' : '');
+    btn.textContent = m;
+    btn.onclick = () => loadMonth(m);
+    nav.appendChild(btn);
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const keys = Object.keys(passports);
+  if (keys.length === 0) {
+    list.innerHTML = '<div class="no-data">Пока нет сохранённых паспортов.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  keys.forEach(m => {
+    const d = passports[m];
+    const inc = (d.income?.anya || 0) + (d.income?.vGuar || 0) + (d.income?.vProj || 0) + (d.income?.other || 0);
+    const regExp = Object.values(d.expenses || {}).filter(v => typeof v === 'number').reduce((a,b) => a+b, 0);
+    const oneTime = (d.oneTime || []).reduce((a,x) => a+(x.amount||0), 0);
+    const bal = inc - regExp - oneTime;
+    const icon = d.status === 'critical' ? '🔴' : d.status === 'irregular' ? '⚠️' : '✅';
+    const div = document.createElement('div');
+    div.className = 'hist-card';
+    div.onclick = () => loadMonth(m);
+    div.innerHTML = `
+      <div class="hist-icon">${icon}</div>
+      <div class="hist-body">
+        <div class="hist-month">${m} <span class="hist-flag ${d.status === 'normal' ? 'ok' : 'warn'}">${d.status === 'normal' ? 'норма' : 'аномалия'}</span></div>
+        <div class="hist-summary">Доход: ${fmt(inc)} · Расходы: ${fmt(regExp + oneTime)} · Флаги: ${(d.flags||[]).slice(0,2).join(', ') || '—'}</div>
+        ${d.comment ? `<div style="font-size:11px; color:var(--mid); margin-top:4px; font-style:italic">"${d.comment.slice(0,80)}${d.comment.length > 80 ? '…' : ''}"</div>` : ''}
+      </div>
+      <div class="hist-bal ${bal >= 0 ? 'pos' : 'neg'}">${bal >= 0 ? '+' : ''}${fmt(bal)}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(name + 'Tab').classList.add('active');
+  document.querySelectorAll('.tab')[['form','dashboard','history','export'].indexOf(name)].classList.add('active');
+  if (name === 'export') renderExportPreview();
+  if (name === 'dashboard') renderDashboard();
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+
+const MONTH_ORDER = ['Апрель 2026','Май 2026','Июнь 2026','Июль 2026','Август 2026','Сентябрь 2026',
+  'Октябрь 2026','Ноябрь 2026','Декабрь 2026','Январь 2027','Февраль 2027',
+  'Март 2027','Апрель 2027','Май 2027'];
+
+let dashChartInstance = null;
+
+function getMonthData(d) {
+  const inc = (d.income?.anya||0)+(d.income?.vGuar||0)+(d.income?.vProj||0)+(d.income?.other||0);
+  const e = d.expenses||{};
+  const regExp = (e.food||0)+(e.util||0)+(e.transp||0)+(e.health||0)+(e.cafe||0)+(e.subs||0)+(e.schA||0)+(e.circA||0)+(e.bike||0)+(e.schM||0);
+  const oneTime = (d.oneTime||[]).reduce((a,x)=>a+(x.amount||0),0);
+  const totalExp = regExp + oneTime;
+  const bal = inc - totalExp;
+  const sav = (d.investments?.stocks||0)+(d.investments?.edu||0)+(d.investments?.fund||0);
+  const b = d.balances||{};
+  const totalLiq = (b.anya||0)+(b.common||0)+(b.edu||0)+(b.vac||0)+(b.sber||0)+(b.vitTink||0)+(b.vitSber||0)+(b.vitIp||0)+(b.invest||0);
+  return { inc, regExp, oneTime, totalExp, bal, sav, totalLiq, e };
+}
+
+function renderDashboard() {
+  const saved = MONTH_ORDER.filter(m => passports[m]);
+
+  // Empty state
+  document.getElementById('dashEmpty').style.display = saved.length === 0 ? 'block' : 'none';
+  document.getElementById('dashChartCard').style.display = saved.length < 2 ? 'none' : 'block';
+  document.getElementById('dashSummaryCard').style.display = saved.length === 0 ? 'none' : 'block';
+
+  // Month cards
+  const container = document.getElementById('dashMonths');
+  if (saved.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = saved.map(m => {
+    const d = passports[m];
+    const { inc, regExp, oneTime, totalExp, bal, sav, totalLiq, e } = getMonthData(d);
+    const catParts = [
+      e.food ? `🛒 ${fmt(e.food)}` : '',
+      e.schA ? `🏫 Арс. ${fmt(e.schA)}` : '',
+      e.schM ? `🏫 Мат. ${fmt(e.schM)}` : '',
+      e.health ? `💊 ${fmt(e.health)}` : '',
+      e.transp ? `🚗 ${fmt(e.transp)}` : '',
+      e.bike ? `🚴 ${fmt(e.bike)}` : '',
+      e.circA ? `📚 ${fmt(e.circA)}` : '',
+    ].filter(Boolean);
+    const hasData = inc > 0 || totalExp > 0;
+
+    return `<div class="dash-month-card">
+      <div class="dmc-header">
+        <div class="dmc-month">${m}</div>
+        ${sav > 0 ? `<span class="dmc-badge sav">💾 НС +${fmt(sav)}</span>` : ''}
+        ${bal >= 0
+          ? `<span class="dmc-badge pos">+${fmt(bal)} профицит</span>`
+          : `<span class="dmc-badge neg">−${fmt(Math.abs(bal))} дефицит</span>`}
+      </div>
+      ${hasData ? `
+      <div class="dmc-nums">
+        <div class="dmc-num">
+          <div class="dmc-label">Доходы</div>
+          <div class="dmc-val green">${fmt(inc)}</div>
+        </div>
+        <div class="dmc-num">
+          <div class="dmc-label">Регулярные</div>
+          <div class="dmc-val red">${fmt(regExp)}</div>
+        </div>
+        <div class="dmc-num">
+          <div class="dmc-label">Разовые</div>
+          <div class="dmc-val ${oneTime > 0 ? 'red' : 'dark'}">${oneTime > 0 ? fmt(oneTime) : '—'}</div>
+        </div>
+        <div class="dmc-num">
+          <div class="dmc-label">Ликвидность</div>
+          <div class="dmc-val blue">${totalLiq > 0 ? fmt(totalLiq) : '—'}</div>
+        </div>
+      </div>
+      <div class="dmc-cats">${catParts.map(c=>`<span class="dmc-cat">${c}</span>`).join('')}</div>
+      ` : `<div class="dmc-empty">Данные не заполнены — нажмите на месяц, чтобы заполнить</div>`}
+      ${d.comment ? `<div class="dmc-note">💬 ${d.comment}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Chart
+  if (saved.length >= 2) {
+    const labels = saved.map(m => m.split(' ')[0]);
+    const incomes = saved.map(m => getMonthData(passports[m]).inc);
+    const expenses = saved.map(m => getMonthData(passports[m]).totalExp);
+    const balances = saved.map(m => getMonthData(passports[m]).bal);
+
+    if (dashChartInstance) { dashChartInstance.destroy(); dashChartInstance = null; }
+    const ctx = document.getElementById('dashChart').getContext('2d');
+    dashChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: saved.map(m => m.split(' ')[0]),
+        datasets: [
+          { label: 'Доходы', data: incomes, backgroundColor: 'rgba(16,185,129,0.25)', borderColor: '#10B981', borderWidth: 2, borderRadius: 5 },
+          { label: 'Расходы', data: expenses, backgroundColor: 'rgba(239,68,68,0.2)', borderColor: '#EF4444', borderWidth: 2, borderRadius: 5 },
+          { label: 'Баланс', data: balances, type: 'line', borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.08)', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#2563EB', tension: 0.3, yAxisID: 'y' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 14 } } },
+        scales: {
+          y: { ticks: { callback: v => (v/1000).toFixed(0)+'К', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Summary table
+  let tbl = `<table class="sumtable">
+    <thead><tr>
+      <th>Месяц</th><th>Доход</th><th>Аня</th><th>Виталий гар.</th><th>ИП проекты</th>
+      <th>Расходы рег.</th><th>Разовые</th><th>НС отложено</th><th>Баланс</th><th>Ликвидность</th>
+    </tr></thead><tbody>`;
+  let totInc=0, totReg=0, totOne=0, totSav=0, totBal=0;
+  saved.forEach(m => {
+    const d = passports[m];
+    const { inc, regExp, oneTime, bal, sav, totalLiq } = getMonthData(d);
+    const anya = d.income?.anya||0, vg = d.income?.vGuar||0, vp = d.income?.vProj||0;
+    totInc+=inc; totReg+=regExp; totOne+=oneTime; totSav+=sav; totBal+=bal;
+    const bc = bal>=0 ? 'color:var(--green)' : 'color:var(--red)';
+    tbl += `<tr>
+      <td>${m}</td>
+      <td style="color:var(--green); font-weight:700;">${fmt(inc)}</td>
+      <td style="color:var(--mid);">${anya>0?fmt(anya):'—'}</td>
+      <td style="color:var(--mid);">${vg>0?fmt(vg):'—'}</td>
+      <td style="color:var(--mid);">${vp>0?fmt(vp):'—'}</td>
+      <td style="color:var(--red);">${fmt(regExp)}</td>
+      <td style="color:#F59E0B;">${oneTime>0?fmt(oneTime):'—'}</td>
+      <td style="color:var(--primary);">${sav>0?fmt(sav):'—'}</td>
+      <td style="font-weight:700;${bc}">${bal>=0?'+':''}${fmt(bal)}</td>
+      <td style="color:var(--primary);">${totalLiq>0?fmt(totalLiq):'—'}</td>
+    </tr>`;
+  });
+  tbl += `</tbody><tfoot><tr>
+    <td>ИТОГО (${saved.length} мес.)</td>
+    <td style="color:var(--green);">${fmt(totInc)}</td>
+    <td></td><td></td><td></td>
+    <td style="color:var(--red);">${fmt(totReg)}</td>
+    <td style="color:#F59E0B;">${totOne>0?fmt(totOne):'—'}</td>
+    <td style="color:var(--primary);">${totSav>0?fmt(totSav):'—'}</td>
+    <td style="${totBal>=0?'color:var(--green)':'color:var(--red)'}; font-weight:800;">${totBal>=0?'+':''}${fmt(totBal)}</td>
+    <td></td>
+  </tr></tfoot></table>`;
+  document.getElementById('dashSummaryTable').innerHTML = tbl;
+}
+
+function renderExportPreview() {
+  const keys = Object.keys(passports);
+  const preview = document.getElementById('csvPreview');
+  if (keys.length === 0) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  let html = `<table style="border-collapse:collapse; min-width:700px;">
+    <tr style="background:var(--primary); color:white;">
+      <th style="padding:8px 10px; text-align:left;">Месяц</th>
+      <th style="padding:8px 10px; text-align:right;">Доход</th>
+      <th style="padding:8px 10px; text-align:right;">Расходы</th>
+      <th style="padding:8px 10px; text-align:right;">Разовые</th>
+      <th style="padding:8px 10px; text-align:right;">В НС Фонд</th>
+      <th style="padding:8px 10px; text-align:right;">Баланс</th>
+      <th style="padding:8px 10px; text-align:left;">Флаги</th>
+    </tr>`;
+  keys.forEach(m => {
+    const d = passports[m];
+    const inc = (d.income?.anya||0)+(d.income?.vGuar||0)+(d.income?.vProj||0)+(d.income?.other||0);
+    const regExp = Object.values(d.expenses||{}).filter(v=>typeof v==='number').reduce((a,b)=>a+b,0);
+    const oneTime = (d.oneTime||[]).reduce((a,x)=>a+(x.amount||0),0);
+    const bal = inc - regExp - oneTime;
+    const fund = d.investments?.fund || 0;
+    html += `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px 10px;">${m}</td>
+      <td style="padding:8px 10px; text-align:right; color:var(--green);">${fmt(inc)}</td>
+      <td style="padding:8px 10px; text-align:right; color:var(--red);">${fmt(regExp)}</td>
+      <td style="padding:8px 10px; text-align:right; color:var(--yellow);">${oneTime > 0 ? fmt(oneTime) : '—'}</td>
+      <td style="padding:8px 10px; text-align:right; color:var(--primary);">${fund > 0 ? fmt(fund) : '—'}</td>
+      <td style="padding:8px 10px; text-align:right; font-weight:700; color:${bal>=0?'var(--green)':'var(--red)'};">${bal>=0?'+':''}${fmt(bal)}</td>
+      <td style="padding:8px 10px; font-size:11px; color:var(--mid);">${(d.flags||[]).join(', ')||'—'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  document.getElementById('csvTable').innerHTML = html;
+}
+
+function exportCSV() {
+  const keys = Object.keys(passports);
+  if (keys.length === 0) { alert('Нет данных для экспорта'); return; }
+  const rows = [['Месяц','Доход Аня','Доход Виталий гар.','Доход ИП проектный','Прочие','Итого доход','Продукты','ЖКХ','Транспорт','Здоровье','Кафе','Подписки','Школа Арс.','Кружки Арс.','Велоспорт','Школа Матвей','Итого регулярные','Разовые расходы','НС Фонд (отложено)','Баланс','Статус','Флаги','Комментарий']];
+  keys.forEach(m => {
+    const d = passports[m];
+    const inc = (d.income?.anya||0)+(d.income?.vGuar||0)+(d.income?.vProj||0)+(d.income?.other||0);
+    const e = d.expenses||{};
+    const regExp = (e.food||0)+(e.util||0)+(e.transp||0)+(e.health||0)+(e.cafe||0)+(e.subs||0)+(e.schA||0)+(e.circA||0)+(e.bike||0)+(e.schM||0);
+    const oneTime = (d.oneTime||[]).reduce((a,x)=>a+(x.amount||0),0);
+    const bal = inc - regExp - oneTime;
+    rows.push([m, d.income?.anya||0, d.income?.vGuar||0, d.income?.vProj||0, d.income?.other||0, inc,
+      e.food||0,e.util||0,e.transp||0,e.health||0,e.cafe||0,e.subs||0,e.schA||0,e.circA||0,e.bike||0,e.schM||0,regExp,
+      oneTime, d.investments?.fund||0, bal, d.status||'',
+      '"'+(d.flags||[]).join('; ')+'"',
+      '"'+(d.comment||'').replace(/"/g,"'")+'"']);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'financial_passport_export.csv';
+  a.click();
+}
+
+function exportJSON() {
+  const json = JSON.stringify(passports, null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = 'passport_backup.json';
+  a.click();
+}
+
+function importJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      Object.assign(passports, data);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(passports));
+      renderMonthNav(); renderHistory();
+      alert('✅ Данные восстановлены!');
+    } catch { alert('Ошибка формата файла'); }
+  };
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>
