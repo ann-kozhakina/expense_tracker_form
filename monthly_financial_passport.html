@@ -351,6 +351,16 @@ const SAVINGS_ACCS = {
   ns_vac: '🌴 НС «Отпуск/инвестиции»',
 };
 
+// Все известные категории расходов → русские названия
+const ALL_CAT_NAMES = {
+  food:'🛒 Продукты', cycling:'🚴 Велоспорт', school:'🏫 Школа',
+  circles:'🎨 Кружки и занятия', health:'💊 Здоровье', transport:'🚗 Транспорт',
+  shopping:'🛍️ Покупки', utilities:'🏠 ЖКХ', internet:'📡 Интернет и связь',
+  cafe:'☕ Кафе / рестораны', subs:'📱 Подписки', pocket:'👧 Карманные деньги',
+  gifts:'🎁 Подарки', leisure:'🎭 Досуг / развлечения', vacation:'✈️ Отпуск / поездки',
+  taxes:'📋 Налоги и штрафы', work_expenses:'💼 Рабочие расходы', other_e:'💬 Прочее',
+};
+
 // ── Месяцы → даты ─────────────────────────────────────────────────
 const MONTH_RANGES = {
   '2026-04':['2026-04-01','2026-04-30'],
@@ -500,32 +510,39 @@ function renderAll(entries) {
   });
   let totOne = 0;
   let oneHtml = '';
-  Object.entries(oneMap).forEach(function([k,v]){
-    oneHtml += makeRow(catName({category:{id:k,name:k}})||k,'',v,'neg'); totOne+=v;
-  });
-  // Также разовые траты (onetime=true) из regular категорий
-  entries.forEach(function(e){
-    if(e.type==='expense' && e.onetime && skipCats.has(catId(e))){
-      // уже учтены в regular, просто помечаем ниже
-    }
+  Object.entries(oneMap).sort(function(a,b){ return b[1]-a[1]; }).forEach(function([k,v]){
+    const label = ALL_CAT_NAMES[k] || k;
+    oneHtml += makeRow(label,'',v,'neg'); totOne+=v;
   });
   document.getElementById('onetime-rows').innerHTML = oneHtml || '<div class="auto-empty">Нет разовых расходов</div>';
   document.getElementById('tot-onetime').textContent = fmt(totOne);
 
-  // ── ПЕРЕВОДЫ НА НАКОПЛЕНИЯ
+  // ── ПЕРЕВОДЫ НА НАКОПЛЕНИЯ (нетто: пришло минус ушло)
+  // Если взяла деньги с НС и вернула — считаем нетто, не дублируем
   const savMap = {};
   entries.forEach(function(e) {
     if (e.type !== 'transfer') return;
-    const toId = e.to ? (e.to.id || '') : '';
-    if (SAVINGS_ACCS[toId]) savMap[toId] = (savMap[toId]||0) + (+e.amount||0);
+    const toId   = e.to   ? (e.to.id   || '') : '';
+    const fromId = e.from ? (e.from.id  || '') : '';
+    const amt = +e.amount || 0;
+    // Деньги пришли НА накопительный счёт
+    if (SAVINGS_ACCS[toId])   savMap[toId]   = (savMap[toId]  ||0) + amt;
+    // Деньги ушли С накопительного счёта (займ/изъятие) — вычитаем
+    if (SAVINGS_ACCS[fromId]) savMap[fromId] = (savMap[fromId]||0) - amt;
   });
   let totSav = 0;
   let savHtml = '';
   Object.entries(savMap).forEach(function([k,v]){
-    savHtml += makeRow(SAVINGS_ACCS[k],'',v,''); totSav+=v;
+    if (v === 0) return; // нетто ноль — не показываем
+    const cls  = v < 0 ? 'neg' : '';
+    const note = v < 0 ? 'изъятие / возврат займа' : '';
+    savHtml += makeRow(SAVINGS_ACCS[k], note, Math.abs(v), cls);
+    totSav += v;
   });
   document.getElementById('savings-rows').innerHTML = savHtml || '<div class="auto-empty">Нет переводов на накопления</div>';
-  document.getElementById('tot-savings').textContent = fmt(totSav);
+  const savEl = document.getElementById('tot-savings');
+  savEl.textContent = fmt(Math.abs(totSav));
+  savEl.className = 'card-total' + (totSav < 0 ? ' neg' : '');
 
   // ── ИТОГИ
   const totExp = totReg + totEdu + totOne;
