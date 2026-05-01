@@ -603,9 +603,8 @@ window.addEventListener('DOMContentLoaded', function(){
   loadMonth();
 });
 
-// ── Сохранить паспорт ─────────────────────────────────────────────
-function savePassport() {
-  const key = document.getElementById('selMonth').value;
+// ── Собрать данные паспорта из формы ─────────────────────────────
+function collectPassportData() {
   const balIds = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','invest'];
   const balances = {};
   balIds.forEach(function(id){
@@ -614,20 +613,12 @@ function savePassport() {
   });
   const flags = [];
   document.querySelectorAll('.flag-chip.active').forEach(function(c){ flags.push(c.dataset.flag); });
-
-  passports[key] = {
-    savedAt:  new Date().toISOString(),
-    balances: balances,
-    comment:  document.getElementById('comment').value,
-    flags:    flags,
-  };
-  localStorage.setItem(STORE_KEY, JSON.stringify(passports));
-  toast('✅ Паспорт сохранён');
+  return { savedAt: new Date().toISOString(), balances: balances,
+           comment: document.getElementById('comment').value, flags: flags };
 }
 
-// ── Загрузить сохранённый паспорт ────────────────────────────────
-function loadSavedPassport(key) {
-  const p = passports[key];
+// ── Применить данные паспорта в форму ────────────────────────────
+function applyPassportData(p) {
   if (!p) return;
   if (p.balances) {
     Object.entries(p.balances).forEach(function([id,v]){
@@ -640,10 +631,51 @@ function loadSavedPassport(key) {
   if (p.flags) {
     document.querySelectorAll('.flag-chip').forEach(function(c){ c.classList.remove('active'); });
     p.flags.forEach(function(f){
-      const el = document.querySelector(`.flag-chip[data-flag="${f}"]`);
+      const el = document.querySelector('.flag-chip[data-flag="'+f+'"]');
       if (el) el.classList.add('active');
     });
   }
+}
+
+// ── Сохранить паспорт → Google Таблица ───────────────────────────
+function savePassport() {
+  const key  = document.getElementById('selMonth').value;
+  const data = collectPassportData();
+  const json = JSON.stringify(data);
+
+  // Сохраняем в localStorage как резерв
+  passports[key] = data;
+  localStorage.setItem(STORE_KEY, JSON.stringify(passports));
+
+  // Сохраняем в Google Таблицу через no-cors
+  const url = GAS_URL + '?action=savePassport&month=' + encodeURIComponent(key)
+                      + '&data=' + encodeURIComponent(json);
+  fetch(url, { mode: 'no-cors' }).catch(function(){});
+
+  // Пробуем подтвердить через JSONP
+  jsonpRequest(url + '&callback=_saveCb', 8000)
+    .then(function(r){ toast(r && r.ok ? '✅ Паспорт сохранён в таблицу' : '✅ Сохранён локально'); })
+    .catch(function(){ toast('✅ Паспорт сохранён'); });
+}
+
+// ── Загрузить сохранённый паспорт ← Google Таблица ───────────────
+function loadSavedPassport(key) {
+  // Сначала показываем из localStorage пока грузится облако
+  applyPassportData(passports[key]);
+
+  // Загружаем из Google Таблицы
+  const url = GAS_URL + '?action=getPassport&month=' + encodeURIComponent(key);
+  jsonpRequest(url, 10000)
+    .then(function(r){
+      if (r && r.ok && r.data) {
+        applyPassportData(r.data);
+        // Обновляем локальный кэш
+        passports[key] = r.data;
+        localStorage.setItem(STORE_KEY, JSON.stringify(passports));
+        setStatus(document.getElementById('status-bar').textContent + ' · остатки загружены из таблицы', '#386A20');
+      }
+    })
+    .catch(function(){}); // если не получилось — используем localStorage-версию
 }
 </script>
 </body>
