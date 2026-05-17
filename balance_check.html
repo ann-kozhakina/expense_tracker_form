@@ -236,6 +236,7 @@ const ACCS = [
   {id:'ns_edu',   name:'НС «На учёбу»',           emoji:'🎓'},
   {id:'ns_vac',   name:'НС «Отпуск/инвестиции»',  emoji:'🌴'},
   {id:'invest',   name:'Инвестсчёт',              emoji:'📈'},
+  {id:'credit',   name:'Кредитная карта (долг)',   emoji:'💳', isLiability:true},
 ];
 
 // ── LocalStorage (только входящие и фактические остатки) ────────
@@ -427,8 +428,10 @@ function recalc() {
 
   ACCS.forEach(acc => {
     const r = recalcAcc(acc.id, dtFrom, dtTo);
-    totExp += r.expected;
-    if (r.actual !== null) { totAct += r.actual; hasAct = true; }
+    // Кредитная карта — обязательство, вычитаем из общей суммы
+    const sign = acc.isLiability ? -1 : 1;
+    totExp += sign * r.expected;
+    if (r.actual !== null) { totAct += sign * r.actual; hasAct = true; }
   });
 
   const expEl   = document.getElementById('tot-exp');
