@@ -333,6 +333,10 @@ body {
     <div class="f"><label>Наличные</label><input type="number" id="bal-cash" placeholder="0"></div>
     <div class="f"><label>Инвестсчёт (рыночная)</label><input type="number" id="bal-invest" placeholder="0" oninput="updateTotLiquid()"></div>
   </div>
+  <div class="sec-label" style="color:#E57373;">Долги</div>
+  <div class="fields-grid">
+    <div class="f"><label style="color:#E57373;">💳 Долг по кредитке (вычитается)</label><input type="number" id="bal-credit" placeholder="0" oninput="updateTotLiquid()" style="border-color:#E5737333;"></div>
+  </div>
   <div style="padding:10px 16px 14px;">
     <div style="background:var(--surf-lo);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:12px;color:var(--mid);font-weight:600;">ИТОГО ЛИКВИДНЫХ АКТИВОВ</span>
@@ -627,17 +631,22 @@ function renderAll(entries) {
 
 // ── Итого ликвидных активов ───────────────────────────────────────
 function updateTotLiquid() {
-  const ids = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','invest'];
+  const assets = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','invest'];
+  const liabilities = ['credit'];
   let total = 0;
-  ids.forEach(function(id){
+  assets.forEach(function(id){
     const v = parseFloat(document.getElementById('bal-'+id)?.value) || 0;
     total += v;
+  });
+  liabilities.forEach(function(id){
+    const v = parseFloat(document.getElementById('bal-'+id)?.value) || 0;
+    total -= v; // долг вычитается
   });
   document.getElementById('tot-liquid').textContent = total ? fmt(total) : '—';
 }
 // Слушаем все поля балансов
 window.addEventListener('DOMContentLoaded', function(){
-  const ids = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac'];
+  const ids = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','credit'];
   ids.forEach(function(id){
     const el = document.getElementById('bal-'+id);
     if(el) el.addEventListener('input', updateTotLiquid);
@@ -676,7 +685,7 @@ function exportPDF() {
 
 // ── Собрать данные паспорта из формы ─────────────────────────────
 function collectPassportData() {
-  const balIds = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','invest'];
+  const balIds = ['anya_zp','sber','common','vit_tink','vit_sber','ip','cash','ns_edu','ns_vac','invest','credit'];
   const balances = {};
   balIds.forEach(function(id){
     const v = parseFloat(document.getElementById('bal-'+id)?.value);
